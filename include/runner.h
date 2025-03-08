@@ -6,6 +6,7 @@
 #include "vec_sampler.h"
 #include <optional>
 #include <thread>
+#include <algorithm>
 #ifdef _WIN32
 #include <Windows.h>
 #endif
