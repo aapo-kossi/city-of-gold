@@ -4,26 +4,18 @@
 .. currentmodule:: city_of_gold.vec
 
 .. automodule:: city_of_gold.vec
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-    .. rubric:: Modules
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :member-order: groupwise
 
     .. autosummary::
-        :toctree: .
-        :nosignatures:
         :recursive:
+        :toctree: _autosummary/
+        :nosignatures:
 
         env
         sampler
         runner
 
-    .. rubric:: Functions
-
-
-
-
-
-
-
+    .. rubric:: Members

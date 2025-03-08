@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <format>
 /*#include <iostream>*/
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -149,7 +148,8 @@ public:
   py::array_t<ActionMask> get_action_masks() const {
 
     const auto &am = runner.get_action_masks();
-    return create_numpy_view(&am[0], n_envs_stride);
+    const auto *data = &am[0];
+    return create_numpy_view(data, n_envs_stride);
   }
   void sample() { runner.sample(); }
   void step() { runner.step(); }
@@ -163,14 +163,19 @@ public:
 template <size_t N> void bind_vec_env(py::module_ &m) {
   std::string num = std::to_string(N);
   std::string name = std::string(vec_env_cls) + num;
-  std::string doc = std::format(
+  std::string doc =
       R"pbdoc(
-      Vectorized city of gold environment for {0} environments.
+      Vectorized city of gold environment for )pbdoc" +
+      num + R"pbdoc( environments.
 
-      :meth:`{1}.reset` must be called first to initialize the environments
-      before stepping. This also allows setting the parameters for
+      :meth:`)pbdoc" +
+      name + R"pbdoc(.reset` must be called
+      to initialize the environments before stepping.
+      This also allows setting the parameters for
       random number generation, number of players, and map generation.
+
       Sets default game parameters:
+
       * seed: std::random_device()()
       * n_players: 4
       * n_pieces: 3
@@ -179,8 +184,7 @@ template <size_t N> void bind_vec_env(py::module_ &m) {
       * render: False
 
       :return: The (uninitialized) vectorized environments.
-      )pbdoc",
-      N, name);
+      )pbdoc";
 
   py::class_<py_vec_env<N>>(m, name.c_str(), doc.c_str())
       .def(py::init(), "Create the environments")
@@ -195,43 +199,207 @@ template <size_t N> void bind_vec_env(py::module_ &m) {
       )pbdoc")
       .def("reset",
            py::overload_cast<uint32_t, u_char, u_char, Difficulty, unsigned int,
-                             bool>(&py_vec_env<N>::reset))
-      .def("step", &py_vec_env<N>::step, py::arg("actions"))
-      .def_property_readonly("observations", &py_vec_env<N>::observe,
-                             py::return_value_policy::reference_internal)
-      .def_property_readonly("num_envs", &py_vec_env<N>::get_num_envs)
+                             bool>(&py_vec_env<N>::reset),
+           py::arg("seed"), py::arg("n_players"), py::arg("n_pieces"),
+           py::arg("difficulty"), py::arg("max_steps"), py::arg("render"),
+           R"pbdoc(
+           Reset all environments using provided parameters
+
+           :param seed: Set the rng seed
+           :type seed: uint32_t
+           :param n_players: The number of players, with the maximum of 4
+           :type n_players: unsigned char
+           :param n_pieces: Number of map pieces to be used between the starting piece and the end piece when generating the map for the game
+           :type n_pieces: unsigned char
+           :param difficulty: difficulty setting controlling which map pieces are allowed in map generation
+           :type difficulty: :py:class:`city_of_gold.Difficulty`
+           :param max_steps: Number of steps before forcing game end
+           :type max_steps: unsigned int
+           :param render: Set to true to render the game in the environments
+           :type render: bool
+           :return: None
+
+           )pbdoc")
+      .def("step", &py_vec_env<N>::step, py::arg("actions"),
+           R"pbdoc(
+           Advance the environment state according to chosen actions
+
+           :param actions: Actions of the currently active agent in each environment
+           :type actions: :py:class:`numpy.ndarray` of :py:class:`~city_of_gold.ActionData`
+           :return: None
+
+           )pbdoc")
+
+      .def_property_readonly(
+          "observations", &py_vec_env<N>::observe,
+          py::return_value_policy::reference_internal,
+          ":py:class:`numpy.ndarray` of :py:class:`~city_of_gold.ObsData`: "
+          "Observations of currently active agents")
+
+      .def_property_readonly("num_envs", &py_vec_env<N>::get_num_envs,
+                             "int: Number of environments")
       .def_property_readonly("agent_selection",
                              &py_vec_env<N>::get_agent_selection,
-                             py::return_value_policy::reference_internal)
-      .def_property_readonly("selected_action_masks",
-                             &py_vec_env<N>::get_selected_action_masks,
-                             py::return_value_policy::reference_internal)
+                             py::return_value_policy::reference_internal,
+                             ":py:class:`numpy.ndarray[unsigned char]`: "
+                             "Current active player in each environment")
+      .def_property_readonly(
+          "selected_action_masks", &py_vec_env<N>::get_selected_action_masks,
+          py::return_value_policy::reference_internal,
+          ":py:class:`numpy.ndarray` of :py:class:`~city_of_gold.ActionMask`: "
+          "Action masks of current active agents")
       .def_property_readonly("dones", &py_vec_env<N>::get_dones,
-                             py::return_value_policy::reference_internal)
+                             py::return_value_policy::reference_internal,
+                             ":py:class:`numpy.ndarray[bool]`: "
+                             "Flag specifying environments with ended games "
+                             "after the previous step")
       .def_property_readonly("rewards", &py_vec_env<N>::get_rewards,
-                             py::return_value_policy::reference_internal)
-      .def_property_readonly("infos", &py_vec_env<N>::get_infos,
-                             py::return_value_policy::reference_internal);
+                             py::return_value_policy::reference_internal,
+                             "2D :py:class:`numpy.ndarray[float]`: "
+                             "Action masks of currently active agents")
+      .def_property_readonly(
+          "infos", &py_vec_env<N>::get_infos,
+          py::return_value_policy::reference_internal,
+          "2D :py:class:`numpy.ndarray` of :py:class:`~city_of_gold.Info`: "
+          "Episode infos of all agents");
 }
 
 template <size_t N> void bind_vec_sampler(py::module_ &m) {
-  py::class_<py_vec_action_sampler<N>>(
-      m, (std::string(vec_sampler_cls) + std::to_string(N)).c_str())
+  std::string num = std::to_string(N);
+  std::string name = std::string(vec_sampler_cls) + num;
+  std::string doc = {
+      "Vectorized random agent for " + num +
+      " environments\n\n"
+      ":param seed: (Optional) Set the random generator seed for the sampler. "
+      "Unique seeds in the form seed+i are used to initialize the individual "
+      "samplers, with i being the index of the sampler.\n"
+      ":type seed: unsigned integer or None\n"
+      ":return: The instantiated vector of action samplers"};
+
+  py::class_<py_vec_action_sampler<N>>(m, name.c_str(), doc.c_str())
       .def(py::init([](std::optional<size_t> seed) {
              return std::make_unique<py_vec_action_sampler<N>>(
                  seed.value_or(std::random_device{}()));
            }),
-           py::arg("seed") = py::none())
-      /*.def(py::init<py::array_t<uint32_t>>(), py::arg("seeds"))*/
+           py::arg("seed") = py::none(), "Initialize the sampler")
       .def("get_actions", &py_vec_action_sampler<N>::get_actions,
-           py::return_value_policy::reference_internal)
-      .def("sample", &py_vec_action_sampler<N>::sample, py::arg("action_mask"));
-  /*.def("sample_single", &py_vec_action_sampler<N>::sample_single);*/
+           py::return_value_policy::reference_internal,
+           "Get a reference to the samplers internal vector of sampled "
+           "actions.\n\n"
+           "The contents are overwritten every time :meth:`sample` is called.\n"
+           ":returns: The vector where sampled actions are placed\n"
+           ":rtype: :py:class:`numpy.ndarray` of "
+           ":py:class:`~city_of_gold.ActionData`")
+      .def("sample", &py_vec_action_sampler<N>::sample, py::arg("action_mask"),
+           "Generate a uniform sample of the valid action space for each "
+           "environment.\n\n"
+           "Update the contents of actions with a new sample masked using the "
+           "input action mask.\n"
+           ":param action_mask: mask specifying valid actions for each "
+           "environment\n"
+           ":type action_mask: :py:class:`numpy.ndarray` of "
+           ":py:class:`~city_of_gold.ActionMask`\n"
+           ":return: None");
 }
 
-template <size_t N> void bind_runner(py::module_ &m) {
-  py::class_<py_threaded_runner<N>>(
-      m, (std::string(vec_runner_cls) + std::to_string(N)).c_str())
+template <size_t N> void bind_runner(py::module_ &m, py::module_ &m_base) {
+  std::string parent_m_name = py::cast<std::string>(m_base.attr("__name__"));
+  std::string::size_type pos = parent_m_name.find('.');
+  assert(pos != std::string::npos);
+  std::string base_name = parent_m_name.substr(0, pos);
+  std::string module_name = py::cast<std::string>(m.attr("__name__"));
+  std::string num = std::to_string(N);
+  std::string name = std::string(vec_runner_cls) + num;
+  std::string env_name = std::string(vec_env_cls) + num;
+  std::string sampler_name = std::string(vec_sampler_cls) + num;
+  std::string doc = "Threaded game runner for " + num + R"pbdoc( environments.
+
+      Provides threaded wrappers to stepping environments in parallel,
+      and to sampling random actions for benchmarking performance.
+      Spawns threads that each are responsible for processing a continuous
+      batch of environments.
+
+      :param env: The vector of environments to run
+      :type env: :py:class:`~)pbdoc" +
+                    parent_m_name + ".env." + env_name + R"pbdoc(`
+      :param sampler: The vector of environments to run
+      :type sampler: :py:class:`~)pbdoc" +
+                    parent_m_name + ".sampler." + sampler_name + R"pbdoc(`
+      :param n_threads: Number of worker threads to spawn
+      :type n_threads: unsigned int
+
+      :return: The runner instance.
+
+      )pbdoc";
+  std::string get_envs_doc = {
+      "Get a mutable reference to the underlying array of environments.\n\n"
+      ":return: Reference to the environments managed by this object\n"
+      ":rtype: :py:class:`~" +
+      parent_m_name + ".env." + env_name + "`"};
+  std::string get_n_threads_doc = {
+      "Get the number of workers.\n\n"
+      ":return: Number of workers spawned by this object\n"
+      ":rtype: unsigned int"};
+  std::string get_samplers_doc = {
+      "Get a mutable reference to the underlying array of action "
+      "samplers.\n\n"
+      ":return: Reference to the samplers managed by this object\n"
+      ":rtype: :py:class:`~" +
+      parent_m_name + ".sampler." + sampler_name + "`"};
+  std::string get_actions_doc = {
+      "Get a mutable reference to the underlying array of actions.\n\n"
+      "Custom agents need to write to this array for their actions to "
+      "be processed when advancing the environments via the :meth:`step` "
+      "or :meth:`step_sync` function.\n\n"
+      ":return: Mutable reference to the action array read from when stepping "
+      "the environments and written to when sampling actions\n"
+      ":rtype: :py:class:`numpy.ndarray` of :py:class:`~" +
+      base_name + ".ActionData`"};
+
+  // TODO: make this true, currently the action mask is returned as mutable
+  std::string get_am_doc = {
+      "Get an immutable reference to action masks of currently active "
+      "players\n\n"
+      ":return: The action masks of currently active players\n"
+      ":rtype: :py:class:`numpy.ndarray` of :py:class:`~" +
+      base_name + ".ActionMask`"};
+  std::string step_doc = {
+      "Advance the environment state according to set actions\n\n"
+
+      "Contrary to the sequential :py:func:`" +
+      parent_m_name + ".env." + env_name +
+      ".step`, stepping is performed in parallel. Each worker thread processes "
+      ":math:`x` consecutive environments, where\n\n.. math::\n\n"
+      "    \\frac{n_{\\text{envs}}}{n_{\\text{threads}}} < x < "
+      "\\frac{n_{\\text{envs}}}{n_{\\text{threads}}} + 1\n\n"
+      "This function only submits the work to each thread, meaning environment "
+      "data after this function is in an undefined state with respect to the "
+      "main "
+      "thread until :meth:`sync` is called. "
+      "Each worker is guaranteed to always step and sample actions of the same "
+      "environments.\n\n"
+      ":return: None"};
+  std::string sync_doc = {"Blocks the main thread until all workers have "
+                          "finished all queued tasks.\n\n"
+                          ":return: None"};
+  std::string step_sync_doc = {
+      "Equivalent of calling :meth:`step` and :meth:`sync`\n\n"
+      "Synchronising threads internally avoids one intermediate return to the "
+      "Python interpreter.\n\n"
+      ":return: None"};
+  std::string sample_doc = {
+      "Generate a uniform sample of the valid action space for each "
+      "environment.\n\n"
+      "Update the contents of actions with a new sample masked using the "
+      "current action masks of the managed environments."
+      "Contrary to the sequential :py:func:`" +
+      parent_m_name + ".sampler." + sampler_name +
+      ".sample`, sampling is performed in parallel. The indices sampled by "
+      "each thread are guaranteed to match the environments processed by the "
+      "thread when :meth:`step` is called.\n\n"
+      ":return: None"};
+
+  py::class_<py_threaded_runner<N>>(m, name.c_str(), doc.c_str())
       .def(py::init([](py_vec_env<N> &env_, py_vec_action_sampler<N> &sampler_,
                        std::optional<size_t> n_threads) {
              return std::make_unique<py_threaded_runner<N>>(
@@ -239,38 +407,45 @@ template <size_t N> void bind_runner(py::module_ &m) {
                  n_threads.value_or(std::thread::hardware_concurrency()));
            }),
            py::arg("env"), py::arg("sampler"),
-           py::arg("n_threads") = py::none())
+           py::arg("n_threads") = py::none(), "Initialize the runner")
       .def("get_envs", &py_threaded_runner<N>::get_envs,
-           py::return_value_policy::reference)
-      .def("get_n_threads", &py_threaded_runner<N>::get_n_threads)
+           py::return_value_policy::reference, get_envs_doc.c_str())
+      .def("get_n_threads", &py_threaded_runner<N>::get_n_threads,
+           get_n_threads_doc.c_str())
       .def("get_samplers", &py_threaded_runner<N>::get_samplers,
-           py::return_value_policy::reference)
+           py::return_value_policy::reference, get_samplers_doc.c_str())
       .def("get_actions", &py_threaded_runner<N>::get_actions,
-           py::return_value_policy::reference)
+           py::return_value_policy::reference, get_actions_doc.c_str())
       .def("get_action_masks", &py_threaded_runner<N>::get_action_masks,
-           py::return_value_policy::reference)
-      .def("step", &py_threaded_runner<N>::step)
-      .def("step_sync", &py_threaded_runner<N>::step_sync)
-      .def("sync", &py_threaded_runner<N>::sync)
-      .def("sample", &py_threaded_runner<N>::sample);
+           py::return_value_policy::reference, get_am_doc.c_str())
+      .def("step", &py_threaded_runner<N>::step, step_doc.c_str())
+      .def("step_sync", &py_threaded_runner<N>::step_sync,
+           step_sync_doc.c_str())
+      .def("sync", &py_threaded_runner<N>::sync, sync_doc.c_str())
+      .def("sample", &py_threaded_runner<N>::sample, sample_doc.c_str());
 }
 
-void bind_vec_getters(py::module_ &m_parent, py::module_ &m_samplers, py::module_ &m_envs, py::module_ &m_runners);
+void bind_vec_getters(py::module_ &m_parent, py::module_ &m_envs,
+                      py::module_ &m_samplers, py::module_ &m_runners);
 
-template <size_t N, size_t i=0> void bind_internal(py::module_ &m_s, py::module_ &m_e, py::module_ &m_r) {
-  bind_vec_sampler<i>(m_s);
+template <size_t N, size_t i = 1>
+void bind_internal(py::module_ &m_parent, py::module_ &m_e, py::module_ &m_s,
+                   py::module_ &m_r) {
   bind_vec_env<i>(m_e);
-  bind_runner<i>(m_r);
-  if constexpr ( i >= N) return;
-  else if constexpr ( i >= 8) return bind_internal<N,i*2>(m_s, m_e, m_r);
-  else return bind_internal<N,i+1>(m_s, m_e, m_r);
+  bind_vec_sampler<i>(m_s);
+  bind_runner<i>(m_r, m_parent);
+  if constexpr (i >= N)
+    return;
+  else if constexpr (i >= 8)
+    return bind_internal<N, i * 2>(m_parent, m_e, m_s, m_r);
+  else
+    return bind_internal<N, i + 1>(m_parent, m_e, m_s, m_r);
 }
 
 template <size_t N> void bind_runners(py::module_ &m_parent) {
   auto m_env = m_parent.def_submodule("env", "Vectorized environments");
   auto m_sam = m_parent.def_submodule("sampler", "Vectorized action samplers");
   auto m_run = m_parent.def_submodule("runner", "Vectorized runners");
-  bind_internal<N>(m_env, m_sam, m_run);
+  bind_internal<N>(m_parent, m_env, m_sam, m_run);
   bind_vec_getters(m_parent, m_env, m_sam, m_run);
 }
-

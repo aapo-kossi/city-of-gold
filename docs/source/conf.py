@@ -51,9 +51,9 @@ html_theme_options = {
 autodoc_default_flags = ['members', 'undoc-members', 'show-inheritance']
 exclude_patterns = []
 
-# generate file stubs
-autosummary_generate = True
-autosummary_generate_overwrite = False
+# generate file stubs for submodules
+autosummary_generate = ["vec/city_of_gold.vec.rst"]
+autosummary_generate_overwrite = True
 
 # doctest setup
 import city_of_gold

@@ -9,7 +9,7 @@ API reference
     .. rubric:: Modules
 
     .. autosummary::
-       :toctree: _autosummary
+       :toctree: vec/
        :nosignatures:
 
        vec

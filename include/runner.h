@@ -30,12 +30,21 @@ public:
     workers.reserve(n_threads);
     total_pending_tasks.store(0, std::memory_order_relaxed);
 
+    size_t base_batch_size = N / n_threads;
+    size_t remainder = N % n_threads;
+
     for (size_t i = 0; i < n_threads; ++i) {
       task_queues.emplace_back(
-          std::make_unique<q_type>()); // Preallocate queue size
-      size_t batch_size = N / n_threads;
-      size_t start = i * batch_size;
-      size_t end = i < (n_threads - 1) ? start + batch_size : N;
+          std::make_unique<q_type>());
+
+      size_t batch_size = base_batch_size;
+      if (i < remainder) {
+        batch_size += 1;
+      }
+
+      size_t start = i * base_batch_size + std::min(i, remainder);
+      size_t end = start + batch_size;
+
       workers.emplace_back([this, start, end, i] {
         set_thread_affinity(i);
         bool done = false;

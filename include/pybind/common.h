@@ -100,6 +100,12 @@ py::array_t<T> create_numpy_view(T *data,
   return py::array_t<T>(strides, data, py::capsule(data, [](void *p) {}));
 }
 
+template <typename T, size_t N>
+py::array_t<T> create_numpy_view(const T *data,
+                                 const std::array<ptrdiff_t, N> &strides) {
+  return py::array_t<T>(strides, data, py::capsule(data, [](void *p) {}));
+}
+
 void bind_single_env(py::module_ &m);
 
 inline auto numpy_to_std_array(const py::array &arr, auto &std_array) {

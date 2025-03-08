@@ -70,6 +70,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
+docs/source/vec/_autosummary/
 docs/build/
 
 # PyBuilder

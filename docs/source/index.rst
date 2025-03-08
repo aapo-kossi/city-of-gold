@@ -13,7 +13,7 @@ tile-based map where up to 4 players compete to reach the goal tiles before
 their competitors. For training AI agents, the environment interface is designed
 for multi-core parallelism using multithreading in C++ to run multiple independent
 environments concurrently. Runner classes for different levels of parallelism
-are available with :py:func:`city_of_gold.get_runner`. The observation data
+are available with :py:func:`city_of_gold.vec.get_runner`. The observation data
 contains in contiguous memory the current states of each environment, including
 an action mask to inform agents what actions are currently valid.
 
