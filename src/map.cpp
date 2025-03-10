@@ -5,8 +5,8 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
-#include <string>
 #include <numeric>
+#include <string>
 
 std::vector<const Hex *> get_n_copies(const Hex *hex, size_t n) {
   std::vector<const Hex *> ret(n);
@@ -465,42 +465,15 @@ std::array<MapPiece, 2> start_pieces = {
     // Apiece (StartPiece)
     MapPiece(
         {
-            &start_hexes[0],
-            &start_hexes[1],
-            &start_hexes[2],
-            &start_hexes[3],
-            &jungle[0],
-            &jungle[0],
-            &jungle[0],
-            &jungle[0],
-            &jungle[0],
-            &jungle[0],
-            &jungle[0],
-            &desert[0],
-            &jungle[0],
-            &water[0],
-            &jungle[0],
-            &jungle[0],
-            &desert[0],
-            &jungle[0],
-            &water[0],
-            &jungle[0],
-            &desert[0],
-            &jungle[0],
-            &jungle[0],
-            &mountain,
-            &desert[0],
-            &jungle[0],
-            &jungle[0],
-            &jungle[0],
-            &water[0],
-            &mountain,
-            &jungle[0],
-            &jungle[0],
-            &desert[0],
-            &jungle[0],
-            &basecamp[0],
-            &jungle[0],
+            &start_hexes[0], &start_hexes[1], &start_hexes[2], &start_hexes[3],
+            &jungle[0],      &jungle[0],      &jungle[0],      &jungle[0],
+            &jungle[0],      &jungle[0],      &jungle[0],      &desert[0],
+            &jungle[0],      &water[0],       &jungle[0],      &jungle[0],
+            &desert[0],      &jungle[0],      &water[0],       &jungle[0],
+            &desert[0],      &jungle[0],      &jungle[0],      &mountain,
+            &desert[0],      &jungle[0],      &jungle[0],      &jungle[0],
+            &water[0],       &mountain,       &jungle[0],      &jungle[0],
+            &desert[0],      &jungle[0],      &basecamp[0],    &jungle[0],
             &jungle[0],
         },
         largepiece_coords, // Coordinates
@@ -708,26 +681,30 @@ void Map::generate(u_char n_pieces, Difficulty difficulty, int failures,
   std::vector<size_t> valid_indices;
   valid_indices.reserve(travel_pieces.size());
   for (size_t i = 0; i < travel_pieces.size(); i++) {
-    if ((travel_pieces[i].get_difficulty() <= difficulty)
-    ) {
+    if ((travel_pieces[i].get_difficulty() <= difficulty)) {
       valid_indices.push_back(i);
     };
   }
   for (int i = 0; i < n_pieces; i++) {
-    bool success;
-    size_t next_idx;
+    size_t valid_idx;
     if (valid_indices.size()) {
-      next_idx = valid_indices[std::uniform_int_distribution<size_t>(
-          0, valid_indices.size() - 1)(rng)];
-      success = add_random_piece(&travel_pieces[next_idx], rng);
+      valid_idx = std::uniform_int_distribution<size_t>(
+          0, valid_indices.size() - 1)(rng);
+      size_t piece_idx = valid_indices[valid_idx];
+      if (add_random_piece(&travel_pieces[piece_idx], rng)) {
+        std::swap(valid_indices[valid_idx], valid_indices.back());
+        valid_indices.pop_back();
+      } else {
+        // try again
+        reset();
+        return generate(n_pieces, difficulty, failures + 1, max_failures, rng);
+      }
     } else {
-      success = false;
-    }
-    if (success) {
-      valid_indices.erase(valid_indices.begin() + static_cast<long>(next_idx));
-    } else {
-      // try again
-      generate(n_pieces, difficulty, failures + 1, max_failures, rng);
+      // no valid pieces, invalid configuration
+      throw generate_map_failure(
+          "Trying to generate a map with more pieces than available for "
+          "current difficulty! Either increase map difficulty or generate a "
+          "smaller map.");
     }
   }
   MapPiece &end = end_pieces[std::uniform_int_distribution<size_t>(
@@ -736,7 +713,7 @@ void Map::generate(u_char n_pieces, Difficulty difficulty, int failures,
   if (not success) {
     // try again
     reset();
-    generate(n_pieces, difficulty, failures + 1, max_failures, rng);
+    return generate(n_pieces, difficulty, failures + 1, max_failures, rng);
   }
   finalize();
 };
