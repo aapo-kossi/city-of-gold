@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <cstddef>
 #include <new>
 #include <stdlib.h>
 
@@ -28,41 +27,11 @@
         2 * sizeof(std::max_align_t);
 #endif
 
-template <typename T,
-          std::size_t Alignment = hardware_destructive_interference_size>
-struct AlignedAllocator {
-  using value_type = T;
-
-  T *allocate(std::size_t n) {
-    if (n == 0)
-      return nullptr;
-
-    void *ptr = nullptr;
-    if (posix_memalign(&ptr, Alignment, n * sizeof(T)) != 0) {
-      throw std::bad_alloc();
-    }
-
-    return static_cast<T *>(ptr);
-  }
-
-  void deallocate(T *ptr, std::size_t) noexcept { free(ptr); }
-
-  template <typename U> struct rebind {
-    using other = AlignedAllocator<U, Alignment>;
-  };
-};
-
-template <typename T, typename U, std::size_t A>
-bool operator==(const AlignedAllocator<T, A> &,
-                const AlignedAllocator<U, A> &) {
-  return true;
-}
-
-template <typename T, typename U, std::size_t A>
-bool operator!=(const AlignedAllocator<T, A> &,
-                const AlignedAllocator<U, A> &) {
-  return false;
-}
+#if defined(__APPLE__)
+    #define CACHE_ALIGNED
+#else
+    #define CACHE_ALIGNED alignas(hardware_destructive_interference_size)
+#endif
 
 struct CITYOFGOLD_API DeckObs {
   std::array<u_char, N_CARDTYPES> draw;
@@ -92,7 +61,7 @@ struct CITYOFGOLD_API SharedObservation {
   std::array<u_char, N_BUYABLETYPES> shop;
 };
 
-struct CITYOFGOLD_API alignas(hardware_destructive_interference_size) ActionMask {
+struct CITYOFGOLD_API CACHE_ALIGNED ActionMask {
   std::array<bool, N_CARDTYPES + 1> play;
   std::array<bool, N_CARDTYPES + 1> play_special;
   std::array<bool, N_CARDTYPES + 1> remove;
@@ -123,12 +92,12 @@ struct CITYOFGOLD_API PlayerData {
   ActionMask action_mask;
 };
 
-struct CITYOFGOLD_API alignas(hardware_destructive_interference_size) ObsData {
+struct CITYOFGOLD_API CACHE_ALIGNED ObsData {
   SharedObservation shared;
   std::array<PlayerData, MAX_N_PLAYERS> player_data;
 };
 
-struct CITYOFGOLD_API alignas(hardware_destructive_interference_size) ActionData {
+struct CITYOFGOLD_API CACHE_ALIGNED ActionData {
   u_char play;
   u_char play_special;
   u_char remove;
@@ -155,7 +124,7 @@ struct CITYOFGOLD_API AgentInfo {
   unsigned int n_card_uses;
 };
 
-struct CITYOFGOLD_API alignas(hardware_destructive_interference_size) Info {
+struct CITYOFGOLD_API CACHE_ALIGNED Info {
   unsigned int total_length;
   std::array<AgentInfo, MAX_N_PLAYERS> agent_infos;
 };

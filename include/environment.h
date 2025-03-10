@@ -7,8 +7,7 @@
 #include "map.h"
 #include "player.h"
 
-class CITYOFGOLD_API alignas(hardware_destructive_interference_size)
-    cog_env {
+class CITYOFGOLD_API CACHE_ALIGNED cog_env {
 private:
   uint32_t seed;
   u_char n_players;
@@ -46,7 +45,7 @@ public:
 
   cog_env();
   cog_env(uint32_t seed_, u_char n_players_, u_char n_pieces_,
-               Difficulty difficulty_, unsigned int max_steps_, bool render_);
+          Difficulty difficulty_, unsigned int max_steps_, bool render_);
   void init(ObsData &observations_, Info &info_,
             std::array<float, MAX_N_PLAYERS> &rewards_, ActionMask &selected_);
 
