@@ -8,6 +8,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
+include(CheckIPOSupported)
+check_ipo_supported(RESULT supported OUTPUT error)
+if(supported)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+else()
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE)
+endif()
+
 # Handle multi-configuration generators
 if (DEFINED CMAKE_CONFIGURATION_TYPES)
     if (DEFINED ENV{CIBUILDWHEEL})
@@ -29,15 +37,15 @@ endif()
 
 # compiler flags
 if (MSVC)
-    set(CMAKE_CXX_FLAGS_DEBUG "/Od /GL /Zi")
-    set(CMAKE_CXX_FLAGS_RELEASE "/O2 /GL /DNDEBUG")
-    set(CMAKE_CXX_FLAGS_PROFILE "/O2 /GL /Zi")
-    set(CMAKE_CXX_FLAGS_OPTIMIZED "/O2 /GL /DNDEBUG")
+    set(CMAKE_CXX_FLAGS_DEBUG "/Od /MP /GL /Zi")
+    set(CMAKE_CXX_FLAGS_RELEASE "/O2 /MP /GL /DNDEBUG")
+    set(CMAKE_CXX_FLAGS_PROFILE "/O2 /MP /GL /Zi")
+    set(CMAKE_CXX_FLAGS_OPTIMIZED "/O2 /MP /GL /DNDEBUG")
 else()
-    set(CMAKE_CXX_FLAGS_DEBUG "-O0 -flto=auto -pg -g")
-    set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -flto=auto -DNDEBUG")
-    set(CMAKE_CXX_FLAGS_PROFILE "-O2 -flto=auto -g -DNDEBUG")
-    set(CMAKE_CXX_FLAGS_OPTIMIZED "-Ofast -flto=auto -march=native -mtune=native -DNDEBUG")
+    set(CMAKE_CXX_FLAGS_DEBUG "-O0 -pg -g")
+    set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -DNDEBUG")
+    set(CMAKE_CXX_FLAGS_PROFILE "-O2 -g -DNDEBUG")
+    set(CMAKE_CXX_FLAGS_OPTIMIZED "-Ofast -march=native -mtune=native -DNDEBUG")
 endif()
 
 option(ENABLE_TESTS "Enable building and running tests" ON)
@@ -111,6 +119,14 @@ target_compile_definitions(profile_environment PRIVATE COG_LIBRARY_EXPORTS)
 
 if(ENABLE_PYTHON_BINDINGS)
 
+    set(fallback_name "city_of_gold")
+    if(DEFINED SKBUILD_PROJECT_NAME)
+        set(proj_name "${SKBUILD_PROJECT_NAME}")
+    else()
+        set(proj_name "${fallback_name}")
+    endif()
+
+
     project(
       ${SKBUILD_PROJECT_NAME}
       VERSION ${SKBUILD_PROJECT_VERSION}
@@ -120,17 +136,27 @@ if(ENABLE_PYTHON_BINDINGS)
     find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
     find_package(pybind11 REQUIRED)
 
-    add_library(bindings_ MODULE src/pybind/common.cpp src/pybind/single_env.cpp src/pybind/vectorized.cpp)
-    target_compile_definitions(bindings_ PRIVATE COG_LIBRARY_EXPORTS)
-    target_compile_definitions(bindings_ PRIVATE BINDINGS_LIBRARY_EXPORTS)
+    pybind11_add_module(bindings_
+        src/pybind/common.cpp
+        src/pybind/single_env.cpp
+        src/pybind/vectorized.cpp
+    )
+    target_compile_definitions(bindings_ PRIVATE
+        COG_LIBRARY_EXPORTS
+        BINDINGS_LIBRARY_EXPORTS
+    )
 
-    # link gperftools deps for Profile configuration
-    target_link_libraries(bindings_ PRIVATE "$<$<CONFIG:Profile>:profiler;tcmalloc>")
+    # gperftools deps only for Profile configuration
+    target_link_libraries(bindings_ PRIVATE
+        "$<$<CONFIG:Profile>:profiler;tcmalloc>"
+        city_of_gold_env
+        pybind11::module
+    )
+    set_target_properties(bindings_ PROPERTIES
+        OUTPUT_NAME "${proj_name}"
+    )
 
-    target_link_libraries(bindings_ PRIVATE city_of_gold_env pybind11::module)
     target_include_directories(bindings_ PRIVATE external)
-    set_target_properties(bindings_ PROPERTIES PREFIX "" OUTPUT_NAME "city_of_gold")
-    set_target_properties(bindings_ PROPERTIES SUFFIX "${CMAKE_SHARED_MODULE_SUFFIX}")
 
     install(TARGETS bindings_ LIBRARY DESTINATION .)
 
