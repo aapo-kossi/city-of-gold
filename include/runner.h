@@ -8,6 +8,7 @@
 #include <thread>
 #include <algorithm>
 #ifdef _WIN32
+#define NOMINMAX
 #include <Windows.h>
 #endif
 
@@ -41,7 +42,7 @@ public:
       size_t batch_size = base_batch_size;
       if (i < remainder) {
         batch_size += 1;
-      }
+      };
 
       size_t start = i * base_batch_size + std::min(i, remainder);
       size_t end = start + batch_size;
