@@ -29,10 +29,10 @@ manylinux-ppc64le-image = "manylinux_2_28"
 manylinux-s390x-image = "manylinux_2_28"
 manylinux-pypy_x86_64-image = "manylinux_2_28"
 manylinux-pypy_aarch64-image = "manylinux_2_28"
-skip = ["*-manylinux_i686"]
+skip = ["*-manylinux_*i686", "*-musllinux_*i686"]
 
 test-requires = ["pytest"]
-test-command = "pytest {package}"
+test-command = "pytest -s {package}"
 
 [tool.cibuildwheel.macos]
 environment = { "MACOSX_DEPLOYMENT_TARGET" = "10.13" }
