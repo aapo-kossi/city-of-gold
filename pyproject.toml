@@ -31,7 +31,7 @@ manylinux-pypy_x86_64-image = "manylinux_2_28"
 manylinux-pypy_aarch64-image = "manylinux_2_28"
 skip = ["*-manylinux_i686"]
 
-test-requires = ["pytest", "matplotlib", "scipy"]
+test-requires = ["pytest"]
 test-command = "pytest {package}"
 
 [tool.cibuildwheel.macos]
