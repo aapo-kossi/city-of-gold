@@ -8,8 +8,8 @@
 #include <thread>
 #include <algorithm>
 #ifdef _WIN32
-#define NOMINMAX
-#include <Windows.h>
+  #define NOMINMAX
+  #include <Windows.h>
 #endif
 
 constexpr size_t Q_SIZE = 256;
