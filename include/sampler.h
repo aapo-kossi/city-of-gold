@@ -4,7 +4,7 @@
 #include "constants.h"
 #include <random>
 
-struct CITYOFGOLD_API alignas(hardware_destructive_interference_size) action_sampler {
+struct CITYOFGOLD_API CACHE_ALIGNED action_sampler {
   std::default_random_engine rng;
   action_sampler(uint32_t seed = 42) : rng(seed) {};
   std::vector<u_char> valid_buffer;
