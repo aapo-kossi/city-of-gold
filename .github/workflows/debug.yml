@@ -1,0 +1,25 @@
+
+on:
+  workflow_dispatch:
+    inputs:
+      debug_os:
+        description: "Select OS for debugging"
+        required: true
+        default: "macos-13"
+        type: choice
+        options:
+          - ubuntu-latest
+          - windows-latest
+          - macos-13
+          - macos-14
+jobs:
+  debug_shell:
+    if: github.event_name == 'workflow_dispatch'  # Only run when manually triggered
+    name: Debug shell on ${{ inputs.debug_os }}
+    runs-on: ${{ inputs.debug_os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start interactive SSH session
+        uses: mxschmitt/action-tmate@v3
