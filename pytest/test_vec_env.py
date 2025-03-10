@@ -5,10 +5,18 @@ import city_of_gold
 from city_of_gold import vec
 
 def run_test(steps, n_envs, seed, threaded=False, threads=None, sync=False):
+    print(f"starting test for {steps} steps with {n_envs} envs, {seed} seed.")
+    if threaded:
+        print(
+            f"Testing with multithreading on, using {threads} threads,"
+            f"{'' if sync else 'not'} syncing envs between each step."
+        )
     env_cls = vec.get_vec_env(n_envs)
     sampler_cls = vec.get_vec_sampler(n_envs)
     envs = env_cls()
+    print("instantiated env")
     samplers = sampler_cls(seed)
+    print("instantiated samplers")
     if threaded:
         runner_cls = vec.get_runner(n_envs)
         runner = runner_cls(envs, samplers, threads)
@@ -18,6 +26,7 @@ def run_test(steps, n_envs, seed, threaded=False, threads=None, sync=False):
             step_fun = lambda _: runner.step()
         sample_fun = lambda _: runner.sample()
         envs = runner.get_envs()
+        print("instantiated runner")
     else:
         step_fun = envs.step
         sample_fun = samplers.sample
@@ -27,7 +36,9 @@ def run_test(steps, n_envs, seed, threaded=False, threads=None, sync=False):
     assert not ((not threaded) and sync)
 
     envs.reset(seed, 4, 3, city_of_gold.Difficulty.EASY, 100000, False)
+    print("reset envs")
     actions = samplers.get_actions()
+    print("got actions")
 
     next_agents = np.expand_dims(envs.agent_selection, 1)  # reference, updates internally
     next_obs = envs.observations  # reference, updates internally
@@ -37,12 +48,14 @@ def run_test(steps, n_envs, seed, threaded=False, threads=None, sync=False):
     current_dones = envs.dones  # reference, updates internally
     current_infos = envs.infos  # reference, updates internally
 
+    print("starting run")
     start = time.time()
     for i in range(steps):
         sample_fun(player_masks)
         step_fun(actions)
     if threaded:
         runner.sync()
+    print("finished run\n")
     return time.time() - start
 
 def time_tests(steps, sizes, repeats, seed, threaded, threads=None, sync=False):
