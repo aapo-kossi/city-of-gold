@@ -12,22 +12,30 @@
 #include <Windows.h>
 #endif
 
-constexpr size_t Q_SIZE = 8;
+enum class Task : uint8_t { STEP, SAMPLE, STOP, SYNC, SLEEP };
 
-enum class Task : u_char { STEP, SAMPLE, STOP, SYNC, SLEEP };
+// queue-like buffer with spin-locking iterator. For resource-constrained
+// environments you should either submit the SLEEP task when workers
+// are known to not be needed to free resources, or prefer sequential
+// execution. Using OS level wait and notify functionality, threading
+// overhead would exceed any benefits of parallelisation for reasonable N.
+template <typename T> class CACHE_ALIGNED  atomic_ringbuffer {
+  static constexpr size_t SIZE = 8;
+  using idx_t = uint32_t;
 
-// queue-like buffer with spin-locking iterator
-template <typename T> class atomic_ringbuffer {
 private:
-  std::array<T, Q_SIZE> tasks;
-  size_t head{0};
-  CACHE_ALIGNED std::atomic<size_t> tail{0};
+  // tail and tasks are always written in conjunction when pushing a new item
+  // By having the tail and task array on the same cache line,
+  // we can hope to only fetch the single line each time this happens
+  // This holds for T s.t. sizeof(T) <= 4
+  std::atomic<idx_t> tail{0};
+  std::array<T, SIZE> tasks;
 
-  void increment(std::atomic<size_t> &idx) {
-    size_t orig_idx = idx.load(std::memory_order_relaxed);
-    idx.store((orig_idx + 1) % Q_SIZE, std::memory_order_relaxed);
+  void increment(std::atomic<idx_t> &idx) {
+    idx_t orig_idx = idx.load(std::memory_order_relaxed);
+    idx.store((orig_idx + 1) % SIZE, std::memory_order_relaxed);
   }
-  void increment(size_t &idx) { idx = (idx + 1) % Q_SIZE; }
+  void increment(size_t &idx) { idx = (idx + 1) % SIZE; }
 
 public:
   void push(T &&t) {
@@ -37,25 +45,25 @@ public:
 
   void get(T &t, size_t &i) {
     while (tail.load(std::memory_order_relaxed) == i) {
-      std::this_thread::yield;
+      std::this_thread::yield();
     }
     t = tasks[i];
     increment(i);
   }
-
-  void pop(T &t) { get(t, head); }
 };
 
-using q_type = atomic_ringbuffer<Task>;
-
 template <size_t N> class ThreadedRunner {
+  using q_type = atomic_ringbuffer<Task>;
+
 public:
   ThreadedRunner(std::optional<size_t> thread_count = std::nullopt)
       : envs{}, action_masks{envs.get_selected_action_masks()}, actions{},
-        n_threads{
-            thread_count.value_or(std::thread::hardware_concurrency() > 1
-                                      ? std::thread::hardware_concurrency() - 1
-                                      : 1)},
+        n_threads{thread_count.value_or(
+            std::thread::hardware_concurrency() > 1
+                ? std::min(static_cast<size_t>(
+                               std::thread::hardware_concurrency() - 1),
+                           N)
+                : 1)},
         sync_barrier{static_cast<ptrdiff_t>(n_threads + 1)} {
     workers.reserve(n_threads);
     total_pending_tasks.store(0, std::memory_order_relaxed);

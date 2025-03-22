@@ -37,4 +37,4 @@ test-requires = ["pytest"]
 test-command = "pytest -s {package}"
 
 [tool.cibuildwheel.macos]
-environment = { "MACOSX_DEPLOYMENT_TARGET" = "10.13" }
+environment = { "MACOSX_DEPLOYMENT_TARGET" = "12.0" }

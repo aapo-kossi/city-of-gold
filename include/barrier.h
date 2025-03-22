@@ -48,21 +48,17 @@ It looks different from literature pseudocode for one main reason:
 using __barrier_phase_t = uint8_t;
 
 class __tree_barrier_base {
-  using __atomic_phase_ref_t = std::atomic_ref<__barrier_phase_t>;
-  using __atomic_phase_const_ref_t = std::atomic_ref<const __barrier_phase_t>;
-  static constexpr auto __phase_alignment =
-      __atomic_phase_ref_t::required_alignment;
 
-  using __tickets_t = std::array<__barrier_phase_t, 64>;
+  using __tickets_t = std::array<std::atomic<__barrier_phase_t>, 64>;
   struct CACHE_ALIGNED /* naturally-align the heap state */ __state_t {
-    alignas(__phase_alignment) __tickets_t __tickets;
+    __tickets_t __tickets;
   };
 
   ptrdiff_t m_expected;
   std::unique_ptr<__state_t[]> m_state;
   std::atomic<ptrdiff_t> m_expected_adjustment;
 
-  alignas(__phase_alignment) __barrier_phase_t m_phase;
+  std::atomic<__barrier_phase_t> m_phase;
 
   bool inner_arrive(__barrier_phase_t __old_phase, size_t __current) {
     const __barrier_phase_t __half_step = __old_phase + 1,
@@ -80,7 +76,7 @@ class __tree_barrier_base {
         if (__current == __end_node)
           __current = 0;
         __barrier_phase_t __expect = __old_phase;
-        __atomic_phase_ref_t __phase(m_state[__current].__tickets[__round]);
+        auto &__phase = m_state[__current].__tickets[__round];
         if (__current == __last_node && (__current_expected & 1)) {
           if (__phase.compare_exchange_strong(__expect, __full_step,
                                               std::memory_order_acq_rel))
@@ -114,9 +110,8 @@ public:
 
   [[nodiscard]] arrival_token arrive(size_t idx, ptrdiff_t __update) {
     size_t __current = idx;
-    __atomic_phase_ref_t __phase(m_phase);
-    const auto __old_phase =
-        __phase.load(std::memory_order_relaxed);
+    auto &__phase(m_phase);
+    const auto __old_phase = __phase.load(std::memory_order_relaxed);
     for (; __update; --__update) {
       if (inner_arrive(__old_phase, __current)) {
         m_expected += m_expected_adjustment.load(std::memory_order_relaxed);
@@ -128,9 +123,8 @@ public:
   }
 
   void wait(arrival_token &&__old_phase) const {
-    __atomic_phase_const_ref_t __phase(m_phase);
-    auto const test_fn = [=] {
-      return __phase.load(std::memory_order_acquire) != __old_phase;
+    const auto test_fn = [this, __old_phase] {
+      return m_phase.load(std::memory_order_acquire) != __old_phase;
     };
     auto wait_fn = exponential_falloff_timed_wait();
 
