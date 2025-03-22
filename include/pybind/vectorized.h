@@ -1,11 +1,9 @@
 #pragma once
 
 #include <array>
-/*#include <iostream>*/
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <string>
-#include <string_view>
 
 #include "api.h"
 #include "constants.h"
@@ -23,7 +21,7 @@ extern std::string_view vec_runner_cls;
 
 template <size_t N> class py_vec_env {
 private:
-  vec_cog_env<N> env;
+  vec_cog_env<N> &env;
   constexpr const static std::array<ptrdiff_t, 3> map_strides = {
       GRIDSIZE, GRIDSIZE, N_MAP_FEATURES};
   constexpr const static std::array<ptrdiff_t, 1> shop_strides = {
@@ -47,7 +45,7 @@ private:
       N, MAX_N_PLAYERS};
 
 public:
-  py_vec_env() : env{} {}
+  py_vec_env(vec_cog_env<N> &env_) : env{env_} {}
 
   void reset() { env.reset(); }
 
@@ -106,10 +104,11 @@ public:
 template <size_t N> class py_vec_action_sampler {
 private:
   constexpr const static std::array<ptrdiff_t, 1> n_envs_stride = {N};
-  vec_action_sampler<N> samplers;
+  vec_action_sampler<N> &samplers;
 
 public:
-  py_vec_action_sampler(uint32_t seed) : samplers{seed} {}
+  py_vec_action_sampler(vec_action_sampler<N> &samplers_)
+      : samplers{samplers_} {}
   py::array_t<ActionData> get_actions() {
     const std::array<ActionData, N> &act_arr = samplers.get_actions();
     return create_numpy_view(&act_arr[0], n_envs_stride);
@@ -127,22 +126,21 @@ public:
 
 template <size_t N> class py_threaded_runner {
 private:
-  py_vec_env<N> &envs;
-  py_vec_action_sampler<N> &samplers;
   ThreadedRunner<N> runner;
   constexpr const static std::array<ptrdiff_t, 1> n_envs_stride = {N};
 
 public:
-  py_threaded_runner(py_vec_env<N> &env_, py_vec_action_sampler<N> &samplers_,
-                     size_t n_threads)
-      : runner(env_.get_env(), samplers_.get_sampler(), n_threads), envs(env_),
-        samplers(samplers_) {}
-  py_vec_env<N> &get_envs() { return envs; }
+  py_threaded_runner(std::optional<size_t> n_threads) : runner(n_threads) {}
+  py_vec_env<N> get_envs() { return py_vec_env<N>(runner.get_envs()); }
   size_t get_n_threads() const { return runner.get_n_threads(); }
-  py_vec_action_sampler<N> &get_samplers() { return samplers; }
-  py::array_t<ActionData> get_actions() const {
+  void start_workers() { runner.start_workers(); }
+  py_vec_action_sampler<N> get_samplers() {
+    return py_vec_action_sampler<N>(runner.get_samplers());
+  }
+  void make_samplers(uint32_t seed) { runner.make_samplers(seed); }
+  py::array_t<ActionData> get_actions() {
 
-    const auto &actions = runner.get_actions();
+    auto &actions = runner.get_actions();
     return create_numpy_view(&actions[0], n_envs_stride);
   }
   py::array_t<ActionMask> get_action_masks() const {
@@ -153,11 +151,11 @@ public:
   }
   void sample() { runner.sample(); }
   void step() { runner.step(); }
-  void step_sync() {
-    runner.step();
-    runner.sync();
-  }
+  void sample_seq() { runner.sample_seq(); }
+  void step_seq() { runner.step_seq(); }
   void sync() { runner.sync(); }
+  void sleep() { runner.sleep(); }
+  void wake() { runner.wake(); }
 };
 
 template <size_t N> void bind_vec_env(py::module_ &m) {
@@ -187,7 +185,6 @@ template <size_t N> void bind_vec_env(py::module_ &m) {
       )pbdoc";
 
   py::class_<py_vec_env<N>>(m, name.c_str(), doc.c_str())
-      .def(py::init(), "Create the environments")
       .def("reset", py::overload_cast<>(&py_vec_env<N>::reset), R"pbdoc(
            Reset all environments, not modifying current parameters
 
@@ -277,11 +274,6 @@ template <size_t N> void bind_vec_sampler(py::module_ &m) {
       ":return: The instantiated vector of action samplers"};
 
   py::class_<py_vec_action_sampler<N>>(m, name.c_str(), doc.c_str())
-      .def(py::init([](std::optional<size_t> seed) {
-             return std::make_unique<py_vec_action_sampler<N>>(
-                 seed.value_or(std::random_device{}()));
-           }),
-           py::arg("seed") = py::none(), "Initialize the sampler")
       .def("get_actions", &py_vec_action_sampler<N>::get_actions,
            py::return_value_policy::reference_internal,
            "Get a reference to the samplers internal vector of sampled "
@@ -346,11 +338,15 @@ template <size_t N> void bind_runner(py::module_ &m, py::module_ &m_base) {
       ":return: Reference to the samplers managed by this object\n"
       ":rtype: :py:class:`~" +
       parent_m_name + ".sampler." + sampler_name + "`"};
+  std::string make_samplers_doc = {"Create action samplers.\n\n"
+                                   ":param seed: Random seed\n"
+                                   ":type seed: unsigned integer\n"
+                                   ":return: None"};
   std::string get_actions_doc = {
       "Get a mutable reference to the underlying array of actions.\n\n"
       "Custom agents need to write to this array for their actions to "
       "be processed when advancing the environments via the :meth:`step` "
-      "or :meth:`step_sync` function.\n\n"
+      "function.\n\n"
       ":return: Mutable reference to the action array read from when stepping "
       "the environments and written to when sampling actions\n"
       ":rtype: :py:class:`numpy.ndarray` of :py:class:`~" +
@@ -366,47 +362,49 @@ template <size_t N> void bind_runner(py::module_ &m, py::module_ &m_base) {
   std::string step_doc = {
       "Advance the environment state according to set actions\n\n"
 
-      "Contrary to the sequential :py:func:`" +
-      parent_m_name + ".env." + env_name +
-      ".step`, stepping is performed in parallel. Each worker thread processes "
-      ":math:`x` consecutive environments, where\n\n.. math::\n\n"
+      "Contrary to the sequential :meth:`step_seq`, stepping is performed in "
+      "parallel. Each worker thread processes :math:`x` consecutive "
+      "environments, where\n\n.. math::\n\n"
       "    \\frac{n_{\\text{envs}}}{n_{\\text{threads}}} < x < "
       "\\frac{n_{\\text{envs}}}{n_{\\text{threads}}} + 1\n\n"
-      "This function only submits the work to each thread, meaning environment "
-      "data after this function is in an undefined state with respect to the "
-      "main "
-      "thread until :meth:`sync` is called. "
+      "Synchronizes environments with the main thread before returning. "
       "Each worker is guaranteed to always step and sample actions of the same "
       "environments.\n\n"
+      ":return: None"};
+  std::string step_seq_doc = {
+      "Sequentially advance the environment states according to set actions\n\n"
       ":return: None"};
   std::string sync_doc = {"Blocks the main thread until all workers have "
                           "finished all queued tasks.\n\n"
                           ":return: None"};
-  std::string step_sync_doc = {
-      "Equivalent of calling :meth:`step` and :meth:`sync`\n\n"
-      "Synchronising threads internally avoids one intermediate return to the "
-      "Python interpreter.\n\n"
+  std::string sleep_doc = {"Releases worker threads from busy waiting.\n\n"
+                           ":return: None"};
+  std::string wake_doc = {
+      "Wakes up all worker threads to poll for new tasks.\n\n"
       ":return: None"};
   std::string sample_doc = {
       "Generate a uniform sample of the valid action space for each "
       "environment.\n\n"
       "Update the contents of actions with a new sample masked using the "
       "current action masks of the managed environments."
-      "Contrary to the sequential :py:func:`" +
-      parent_m_name + ".sampler." + sampler_name +
-      ".sample`, sampling is performed in parallel. The indices sampled by "
-      "each thread are guaranteed to match the environments processed by the "
-      "thread when :meth:`step` is called.\n\n"
+      "Contrary to the sequential :meth:`sample_seq`, sampling is performed in "
+      "parallel. The indices sampled by each thread are guaranteed to match "
+      "the environments processed by the thread when :meth:`step` is "
+      "called. No thread synchronization is applied automatically.\n\n"
       ":return: None"};
+  std::string sample_seq_doc = {
+      "Generate a uniform sample of the valid action space for each "
+      "environment.\n\n"
+      "Update the contents of actions with a new sample masked using the "
+      "current action masks of the managed environments.\n\n"
+      ":return: None"};
+  std::string start_doc = {"Start worker threads for parallel execution\n\n"
+                           ":return: None"};
 
   py::class_<py_threaded_runner<N>>(m, name.c_str(), doc.c_str())
-      .def(py::init([](py_vec_env<N> &env_, py_vec_action_sampler<N> &sampler_,
-                       std::optional<size_t> n_threads) {
-             return std::make_unique<py_threaded_runner<N>>(
-                 env_, sampler_,
-                 n_threads.value_or(std::thread::hardware_concurrency()));
+      .def(py::init([](std::optional<size_t> n_threads) {
+             return std::make_unique<py_threaded_runner<N>>(n_threads);
            }),
-           py::arg("env"), py::arg("sampler"),
            py::arg("n_threads") = py::none(), "Initialize the runner")
       .def("get_envs", &py_threaded_runner<N>::get_envs,
            py::return_value_policy::reference, get_envs_doc.c_str())
@@ -414,15 +412,22 @@ template <size_t N> void bind_runner(py::module_ &m, py::module_ &m_base) {
            get_n_threads_doc.c_str())
       .def("get_samplers", &py_threaded_runner<N>::get_samplers,
            py::return_value_policy::reference, get_samplers_doc.c_str())
+      .def("make_samplers", &py_threaded_runner<N>::make_samplers,
+           py::arg("seed"), get_samplers_doc.c_str())
       .def("get_actions", &py_threaded_runner<N>::get_actions,
            py::return_value_policy::reference, get_actions_doc.c_str())
       .def("get_action_masks", &py_threaded_runner<N>::get_action_masks,
            py::return_value_policy::reference, get_am_doc.c_str())
       .def("step", &py_threaded_runner<N>::step, step_doc.c_str())
-      .def("step_sync", &py_threaded_runner<N>::step_sync,
-           step_sync_doc.c_str())
+      .def("step_seq", &py_threaded_runner<N>::step_seq, step_seq_doc.c_str())
       .def("sync", &py_threaded_runner<N>::sync, sync_doc.c_str())
-      .def("sample", &py_threaded_runner<N>::sample, sample_doc.c_str());
+      .def("sleep", &py_threaded_runner<N>::sleep, sleep_doc.c_str())
+      .def("wake", &py_threaded_runner<N>::wake, wake_doc.c_str())
+      .def("sample", &py_threaded_runner<N>::sample, sample_doc.c_str())
+      .def("sample_seq", &py_threaded_runner<N>::sample_seq,
+           sample_seq_doc.c_str())
+      .def("start_workers", &py_threaded_runner<N>::start_workers,
+           start_doc.c_str());
 }
 
 void bind_vec_getters(py::module_ &m_parent, py::module_ &m_envs,

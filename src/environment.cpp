@@ -208,17 +208,17 @@ void cog_env::step(const ActionData &action) {
   [[maybe_unused]] auto &pd = observations->player_data[agent_selection].obs;
   [[maybe_unused]] auto &pm = *selected_action_mask;
   for (size_t i = 1; i < N_CARDTYPES + 1; i++) {
-    assert((pm.play[i] && !pd.hand[i - 1]) && "play mask fucked");
-    assert((pm.play_special[i] && !pd.hand[i - 1]) && "special mask fucked");
-    assert((pm.remove[i] && !pd.hand[i - 1]) && "remove mask fucked");
-    assert((pd.draw[i - 1] > MAX_CARD_COPIES) && "draw invalid");
-    assert((pd.hand[i - 1] > MAX_CARD_COPIES) && "hand invalid");
-    assert((pd.active[i - 1] > MAX_CARD_COPIES) && "active invalid");
-    assert((pd.played[i - 1] > MAX_CARD_COPIES) && "played invalid");
-    assert((pd.discard[i - 1] > MAX_CARD_COPIES) && "discard invalid");
+    assert(!(pm.play[i] && !pd.hand[i - 1]) && "play mask fucked");
+    assert(!(pm.play_special[i] && !pd.hand[i - 1]) && "special mask fucked");
+    assert(!(pm.remove[i] && !pd.hand[i - 1]) && "remove mask fucked");
+    assert((pd.draw[i - 1] <= MAX_CARD_COPIES) && "draw invalid");
+    assert((pd.hand[i - 1] <= MAX_CARD_COPIES) && "hand invalid");
+    assert((pd.active[i - 1] <= MAX_CARD_COPIES) && "active invalid");
+    assert((pd.played[i - 1] <= MAX_CARD_COPIES) && "played invalid");
+    assert((pd.discard[i - 1] <= MAX_CARD_COPIES) && "discard invalid");
   };
   for (size_t i = 0; i < static_cast<size_t>(Resource::MAX_RESOURCE); i++) {
-    assert((observations->shared.current_resources[i] < 0.0) &&
+    assert((observations->shared.current_resources[i] >= 0.0) &&
            "resources fucked");
   }
 };

@@ -6,17 +6,19 @@ import matplotlib.pyplot as plt
 import city_of_gold
 from city_of_gold import vec
 
+
 def fit_linear_regression(times, sizes):
     flat_times = times.flatten()
-    flat_sizes = (sizes[:,np.newaxis] + 0*times).flatten()
+    flat_sizes = (sizes[:, np.newaxis] + 0 * times).flatten()
     slope, intercept, _, _, _ = linregress(flat_sizes, flat_times)
     return slope, intercept
 
+
 def visualize_comparisons(results, sizes, steps):
     # Plotting the original times vs. environments
-    plt.figure(figsize=(12,6))
-    overhead = np.empty(len(results),dtype=float)
-    scaling = np.empty(len(results),dtype=float)
+    plt.figure(figsize=(12, 6))
+    overhead = np.empty(len(results), dtype=float)
+    scaling = np.empty(len(results), dtype=float)
     labels = []
     for i, (times, label) in enumerate(results):
         slope, intercept = fit_linear_regression(times, sizes)
@@ -24,17 +26,19 @@ def visualize_comparisons(results, sizes, steps):
         scaling[i] = slope
         mean_times = times.mean(axis=1)
 
-        async_cmap = plt.cm.Blues # Continuous colormap for async modes
-        sync_cmap = plt.cm.Oranges # Continuous colormap for sync modes
+        cmap = plt.cm.Blues  # Continuous colormap for async modes
+        sync_cmap = plt.cm.Blues  # Continuous colormap for async modes
         # Use continuous colormap for async and sync
         if label == "sequential":
-            color = 'k'
-        elif "async" in label:
+            color = "k"
+        elif "threads" in label:
             n_threads = int(label.split()[0])  # Get thread count
-            color = async_cmap(n_threads / mp.cpu_count())  # Map to colormap
+            color = cmap(n_threads / mp.cpu_count())  # Map to colormap
         elif "sync" in label:
             n_threads = int(label.split()[0])  # Get thread count
             color = sync_cmap(n_threads / mp.cpu_count())  # Map to colormap
+        elif label == "std parallel":
+            color = "g"
         else:
             raise Exception("Unknown label")
         labels.append(label)
@@ -71,32 +75,27 @@ def visualize_comparisons(results, sizes, steps):
     plt.tight_layout()
     plt.show()
 
-def run_test(steps, n_envs, seed, threaded=False, threads=None, sync=False):
-    env_cls = vec.get_vec_env(n_envs)
-    sampler_cls = vec.get_vec_sampler(n_envs)
-    envs = env_cls()
-    samplers = sampler_cls(seed)
-    if threaded:
-        runner_cls = vec.get_runner(n_envs)
-        runner = runner_cls(envs, samplers, threads)
-        if sync:
-            step_fun = lambda _: runner.step_sync()
-        else:
-            step_fun = lambda _: runner.step()
-        sample_fun = lambda _: runner.sample()
-        envs = runner.get_envs()
-    else:
-        step_fun = envs.step
-        sample_fun = samplers.sample
 
-    # sync parameter should not be set with sequential execution
-    # as it only affects functionality with multithreading on
-    assert not ((not threaded) and sync)
+def run_test(steps, n_envs, seed, threaded=False, threads=None):
+    runner_cls = vec.get_runner(n_envs)
+    runner = runner_cls(threads)
+    runner.make_samplers(seed)
+    envs = runner.get_envs()
+    samplers = runner.get_samplers()
+    if threaded:
+        step_fun = runner.step
+        sample_fun = runner.sample
+        runner.start_workers()
+    else:
+        step_fun = runner.step_seq
+        sample_fun = runner.sample_seq
 
     envs.reset(seed, 4, 3, city_of_gold.Difficulty.EASY, 100000, False)
     actions = samplers.get_actions()
 
-    next_agents = np.expand_dims(envs.agent_selection, 1)  # reference, updates internally
+    next_agents = np.expand_dims(
+        envs.agent_selection, 1
+    )  # reference, updates internally
     next_obs = envs.observations  # reference, updates internally
     am = next_obs["player_data"]["action_mask"]
     player_masks = envs.selected_action_masks
@@ -106,28 +105,30 @@ def run_test(steps, n_envs, seed, threaded=False, threads=None, sync=False):
 
     start = time.time()
     for i in range(steps):
-        sample_fun(player_masks)
-        step_fun(actions)
-    if threaded:
-        runner.sync()
+        sample_fun()
+        step_fun()
     return time.time() - start
 
-def time_tests(steps, sizes, repeats, seed, threaded, threads=None, sync=False):
+
+def time_tests(steps, sizes, repeats, seed, threaded, threads=None):
     times = np.empty((len(sizes), repeats), dtype=float)
     for i, s in enumerate(sizes):
         print(f"Size {s}, seed {seed}:")
         for j in range(repeats):
-            taken = run_test(steps, s, seed, threaded, threads, sync)
+            taken = run_test(steps, s, seed, threaded, threads)
             times[i, j] = taken
             print(taken)
             seed += s
     return times
 
+
 def main():
     seed = 0
     repeats = 5
     steps = 10_000
-    sizes = np.array([5,6,7,8,16,32,64,128,256,128,64,32,16,8,7,6,5,4,3,2,1])
+    sizes = np.array(
+        [5, 6, 7, 8, 16, 32, 64, 128, 256, 128, 64, 32, 16, 8, 7, 6, 5, 4, 3, 2, 1]
+    )
 
     # sizes, n_repeats, n_warmup, seed, threaded, n_threads, sync_threads
     opts = {
@@ -137,7 +138,6 @@ def main():
         "seed": seed,
         "threaded": False,
         "threads": None,
-        "sync": False
     }
 
     results = []
@@ -145,18 +145,15 @@ def main():
     time_tests(**opts)
     results.append((time_tests(**opts), "sequential"))
 
-    opts["threaded"] = True
-    for n_threads in range(1, mp.cpu_count()):
-        opts["threads"] = n_threads
-        results.append((time_tests(**opts), f"{n_threads} async threads"))
+    n_cpu = mp.cpu_count()
 
-    opts["sync"] = True
-    for n_threads in range(1, mp.cpu_count()):
+    opts["threaded"] = True
+    for n_threads in range(1, n_cpu):
         opts["threads"] = n_threads
-        results.append((time_tests(**opts), f"{n_threads} sync threads"))
+        results.append((time_tests(**opts), f"{n_threads} threads"))
 
     visualize_comparisons(results, sizes, steps)
 
+
 if __name__ == "__main__":
     main()
-

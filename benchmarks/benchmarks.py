@@ -10,51 +10,39 @@ class TimeEnvs:
         [1,2,3,4,5,6,7,8,16,32,64,128,256],
         [12345],
         [1,2,3,4,5],
-        ["sequential", "async", "sync"],
+        ["sequential", "threaded"],
     )
 
     def setup(self, n, seed, threads, mode):
         if ((mode == "sequential") and (threads > 1)): raise NotImplementedError()
         self.threaded = mode != "sequential"
-        synced = mode == "sync"
-        env_cls = vec.get_vec_env(n)
-        sampler_cls = vec.get_vec_sampler(n)
-        envs = env_cls()
+        runner = vec.get_runner(n)(threads)
+        runner.make_samplers(seed)
+        envs = runner.get_envs()
         envs.reset(seed, 4, 3, city_of_gold.Difficulty.EASY, 100000, False)
-        self.envs = envs
-        samplers = sampler_cls(seed)
-        self.samplers = samplers
-        self.actions = samplers.get_actions()
         self.am = envs.selected_action_masks
         if self.threaded:
-            runner = vec.get_runner(n)(envs, samplers, threads)
             self.sample = runner.sample
-            if synced:
-                self.step_func = runner.step_sync
-                self.end_fun = lambda: None
-                self.sync_fun = lambda: runner.sync()
-            else:
-                self.step_func = runner.step
-                self.end_fun = lambda: runner.sync()
-                self.sync_fun = lambda: None
+            self.step_func = runner.step
+            self.sync_fun = runner.sync
+            runner.start_workers()
         else:
-            self.step_func = lambda: envs.step(self.actions)
-            self.sample = lambda: samplers.sample(self.am)
-            self.end_fun = lambda: None
-            self.sync_fun = self.end_fun
+            self.step_func = runner.step_seq
+            self.sample = runner.sample_seq
+            self.sync_fun = lambda: None
         self.reset = envs.reset
 
     def time_run(self, *_):
         for _ in range(N_STEPS):
             self.sample()
             self.step_func()
-        self.end_fun()
+        self.sync_fun()
 
     def time_sample(self, *_):
         for _ in range(N_STEPS):
             self.sample()
             self.sync_fun()
-        self.end_fun()
+        self.sync_fun()
 
     def time_reset(self, *_):
         if self.threaded:
@@ -66,5 +54,4 @@ class TimeEnvs:
         self.sample()
         self.step_func()
         self.sync_fun()
-        self.end_fun()
 
