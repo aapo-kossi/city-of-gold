@@ -6,7 +6,8 @@
 
 template <size_t N> class vec_action_sampler {
 public:
-  vec_action_sampler(uint32_t seed = 42) : samplers{}, actions{} {
+  vec_action_sampler(std::array<ActionData, N> &act, uint32_t seed = 42)
+      : samplers{}, actions{act} {
     for (size_t i = 0; i < N; i++) {
       samplers[i].set_seed(seed + i);
     }
@@ -24,5 +25,5 @@ public:
 
 private:
   std::array<action_sampler, N> samplers;
-  std::array<ActionData, N> actions;
+  std::array<ActionData, N> &actions;
 };
