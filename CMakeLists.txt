@@ -51,11 +51,7 @@ endif()
 option(ENABLE_TESTS "Enable building and running tests" ON)
 option(ENABLE_PYTHON_BINDINGS "Build Python bindings" ON)
 
-if (DEFINED ENV{CIBUILDWHEEL})
-    set(ENABLE_TESTS OFF)
-endif()
-
-if (DEFINED ENV{READTHEDOCS})
+if (DEFINED ENV{CIBUILDWHEEL} OR DEFINED ENV{READTHEDOCS} OR DEFINED ENV{ASV})
     set(ENABLE_TESTS OFF)
 endif()
 
