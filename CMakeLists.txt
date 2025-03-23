@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
+
+# The cmake project version string is automatically updated by the below script
 execute_process(COMMAND python ${CMAKE_SOURCE_DIR}/sync_version.py)
 project(CityofGold VERSION "0.0.1" LANGUAGES CXX)
 
