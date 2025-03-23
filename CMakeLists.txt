@@ -55,6 +55,10 @@ if (DEFINED ENV{CIBUILDWHEEL})
     set(ENABLE_TESTS OFF)
 endif()
 
+if (DEFINED ENV{READTHEDOCS})
+    set(ENABLE_TESTS OFF)
+endif()
+
 include_directories(include)
 
 # The main library
