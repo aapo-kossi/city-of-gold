@@ -92,8 +92,8 @@ the environment by cloning the repo and building the source code using the inclu
 pyproject.toml configuration.
 
 ```bash
-git clone git@github.com:aapo-kossi/gym-eldorado.git
-pip install ./gym-eldorado
+git clone git@github.com:aapo-kossi/city-of-gold.git
+pip install ./city-of-gold
 ```
 
 ## Usage
@@ -167,6 +167,7 @@ unnecessary.
 ## Tasks
 
 - [ ] Publish PyPI package
-- [ ] API reference
+- [x] API reference
 - [ ] End-to-end training example
+- [ ] Rendering capability with with SDL2
 
