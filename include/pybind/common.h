@@ -16,6 +16,8 @@
 
 namespace py = pybind11;
 
+void bind_single_env(py::module_ &m);
+
 template <typename Class, typename T, size_t N>
 void bind_array(py::class_<Class> &pyclass, const char *name,
                 std::array<T, N> Class::*member) {
@@ -105,8 +107,6 @@ py::array_t<T> create_numpy_view(const T *data,
                                  const std::array<ptrdiff_t, N> &strides) {
   return py::array_t<T>(strides, data, py::capsule(data, [](void *p) {}));
 }
-
-void bind_single_env(py::module_ &m);
 
 inline auto numpy_to_std_array(const py::array &arr, auto &std_array) {
   if (arr.size() != std_array.size()) {

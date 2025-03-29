@@ -54,5 +54,4 @@ autosummary_generate_overwrite = True
 
 # doctest setup
 import city_of_gold
-import city_of_gold.vec
 
