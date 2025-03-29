@@ -66,7 +66,7 @@ const std::vector<std::string> COLORCODES = {
     "\x1b[101;30m",    "\x1b[102;30m", "\x1b[103;30m", "\x1b[104;30m",
     "\x1b[105;30m",    "\x1b[106;30m", "\x1b[107;30m"};
 
-const std::vector<std::string> player_colors = {
+const std::vector<std::string> player_colors_ = {
     COLORCODES[Color::RED_BG], COLORCODES[Color::GREEN_BG],
     COLORCODES[Color::YELLOW_BG], COLORCODES[Color::BLUE_BG]};
 
@@ -162,6 +162,11 @@ public:
   void generate(u_char n_pieces, Difficulty difficulty, int failures,
                 int max_failures, std::default_random_engine rng);
   void reset();
+  const std::vector<const Hex *> &get_hexes() const;
+  const std::vector<point> &get_xy() const;
+  const std::vector<point> &get_player_locations() const {
+    return player_locations;
+  };
 
 private:
   const Hex *get_from_array(const point &) const;

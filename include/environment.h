@@ -7,8 +7,17 @@
 #include "map.h"
 #include "player.h"
 
+#ifdef COG_BUILD_WITH_RENDERING
+class cog_renderer;
+#endif
+
 class CITYOFGOLD_API CACHE_ALIGNED cog_env {
 private:
+
+#ifdef COG_BUILD_WITH_RENDERING
+  std::unique_ptr<cog_renderer> renderer;
+#endif
+
   uint32_t seed;
   u_char n_players;
   u_char n_pieces;
@@ -46,6 +55,7 @@ public:
   cog_env();
   cog_env(uint32_t seed_, u_char n_players_, u_char n_pieces_,
           Difficulty difficulty_, unsigned int max_steps_, bool render_);
+  ~cog_env();
   void init(ObsData &observations_, Info &info_,
             std::array<float, MAX_N_PLAYERS> &rewards_, ActionMask &selected_);
 
@@ -72,3 +82,4 @@ public:
 };
 
 void clear_console();
+

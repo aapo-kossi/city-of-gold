@@ -4,8 +4,11 @@
 #include "environment.h"
 #include <cassert>
 #include <iostream>
-#include <ostream>
 #include <random>
+
+#ifdef COG_BUILD_WITH_RENDERING
+#include "render.h"
+#endif
 
 cog_env::cog_env()
     : seed(std::random_device()()), n_players(MAX_N_PLAYERS),
@@ -14,17 +17,18 @@ cog_env::cog_env()
       info(nullptr), map(), shop(), shop_free(false),
       special_function(nullptr) {};
 
-cog_env::cog_env(uint32_t seed_, u_char n_players_,
-                           u_char n_pieces_, Difficulty difficulty_,
-                           unsigned int max_steps_, bool render)
+cog_env::cog_env(uint32_t seed_, u_char n_players_, u_char n_pieces_,
+                 Difficulty difficulty_, unsigned int max_steps_, bool render)
     : seed(seed_), n_players(n_players_), n_pieces(n_pieces_),
       difficulty(difficulty_), max_steps(max_steps_), b_render(render),
       rng(seed), observations(nullptr), info(nullptr), map(), shop(),
       shop_free(false), special_function(nullptr) {};
 
+cog_env::~cog_env() = default;
+
 void cog_env::init(ObsData &observations_, Info &info_,
-                        std::array<float, MAX_N_PLAYERS> &rewards_,
-                        ActionMask &selected_) {
+                   std::array<float, MAX_N_PLAYERS> &rewards_,
+                   ActionMask &selected_) {
   observations = &observations_;
   info = &info_;
   rewards = &rewards_;
@@ -37,6 +41,14 @@ void cog_env::init(ObsData &observations_, Info &info_,
                           &observations->player_data[i].action_mask,
                           &observations->shared.current_resources);
   }
+#ifdef COG_BUILD_WITH_RENDERING
+  if (b_render) {
+    renderer = std::make_unique<cog_renderer>(this);
+    if (renderer->get_state() != SDL_APP_CONTINUE) {
+      throw std::runtime_error("Could not create renderer!");
+    }
+  }
+#endif
 }
 
 void cog_env::reset() {
@@ -61,11 +73,16 @@ void cog_env::reset() {
   }
   *selected_action_mask =
       observations->player_data[agent_selection].action_mask;
+#ifdef COG_BUILD_WITH_RENDERING
+  if (b_render) {
+    renderer->set_map_size();
+  }
+#endif
 };
 
-void cog_env::reset(uint32_t seed_, u_char n_players_,
-                         u_char n_pieces_, Difficulty difficulty_,
-                         unsigned int max_steps_, bool render_) {
+void cog_env::reset(uint32_t seed_, u_char n_players_, u_char n_pieces_,
+                    Difficulty difficulty_, unsigned int max_steps_,
+                    bool render_) {
   n_players = n_players_;
   n_pieces = n_pieces_;
   difficulty = difficulty_;
@@ -181,8 +198,7 @@ void cog_env::step(const ActionData &action) {
   maybe_end_turn();
   update_observation(agent_selection);
   if (special_function != nullptr) {
-    special_function(observations->player_data[agent_selection].action_mask, p,
-                     map, shop);
+    special_function(*selected_action_mask, p, map, shop);
     special_function = nullptr;
   } else if (map.player_done(agent_selection) || (turn_counter >= max_steps)) {
 
@@ -251,7 +267,7 @@ void cog_env::maybe_end_turn() {
 
 void cog_env::update_observation(u_char agent) {
 
-  ActionMask &am = observations->player_data[agent].action_mask;
+  ActionMask &am = *selected_action_mask;
   am.move.fill(false);
   am.move[0] = true;
   am.get_from_shop.fill(false);
@@ -261,15 +277,14 @@ void cog_env::update_observation(u_char agent) {
   case TurnPhase::INACTIVE:
     break;
   case TurnPhase::MOVEMENT:
-    map.set_movement_mask(observations->player_data[agent].action_mask, agent,
-                          observations->shared.current_resources,
+    map.set_movement_mask(am, agent, observations->shared.current_resources,
                           players[agent].get_n_active());
     break;
   case TurnPhase::BUYING:
     shop.set_available_mask(
         observations->shared
             .current_resources[static_cast<u_char>(Resource::COIN)],
-        observations->player_data[agent].action_mask.get_from_shop);
+        am.get_from_shop);
 
     break;
   case TurnPhase::MAX_PHASE:
@@ -289,23 +304,13 @@ float cog_env::get_reward(u_char agent) {
 
 void cog_env::render() {
   if (b_render) {
-    clear_console();
-    if (!done) {
-      const Player &player = players[agent_selection];
-      std::cout << "\nCurrent map:\n" << std::endl;
-      std::cout << map.draw() << std::endl;
-      std::cout << "\nThe shop:" << std::endl;
-      std::cout << shop.describe() << std::endl;
-      std::cout << "currently playing: " << agent_selection << std::endl;
-      std::cout << player.get_deck().to_string() << std::endl;
-      std::cout << player.describe_resources() << std::endl;
-    } else {
-      std::cout << "game over" << std::endl;
-    }
+#ifdef COG_BUILD_WITH_RENDERING
+    renderer->render();
+#else
+    assert(false && "This library was not built with support for rendering!");
+#endif
   } else {
-    std::cout
-        << "You are calling render method without specifying any render mode."
-        << std::endl;
+    std::cout << "Env not initialized with rendering enabled!" << std::endl;
   }
 }
 const Map &cog_env::get_map() const { return map; };
@@ -320,11 +325,3 @@ bool cog_env::get_done() const { return done; };
 const Info &cog_env::get_info() const { return *info; };
 
 u_char cog_env::get_agent_selection() const { return agent_selection; };
-
-void clear_console() {
-#ifndef WINDOWS
-  std::system("cls");
-#else
-  std::system("clear");
-#endif
-}

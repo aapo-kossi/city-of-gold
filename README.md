@@ -169,5 +169,5 @@ unnecessary.
 - [ ] Publish PyPI package
 - [x] API reference
 - [ ] End-to-end training example
-- [ ] Rendering capability with with SDL2
+- [x] Rendering capability with with ~SDL2~ SDL3
 
