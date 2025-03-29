@@ -117,19 +117,18 @@ seed = 0
 workers = mp.cpu_count() - 1
 steps = 1_000
 
-env_cls = eldorado_py.get_vec_env(n_envs)
-sampler_cls = eldorado_py.get_vec_sampler(n_envs)
-envs = env_cls()
-samplers = sampler_cls(seed)
-runner_cls = eldorado_py.get_runner(n_envs)
-runner = runner_cls(envs, samplers, workers)
+runner_cls = cg.vec.get_runner(n_envs)
+runner = runner_cls()
+runner.make_samplers()
+samplers = runner.get_samplers()
+envs = runner.get_envs()
 
 envs.reset(seed, 4, 3, eldorado_py.Difficulty.EASY, 100000, False)
 
-# get reference to persistent actions vector, updated internally
-actions = samplers.get_actions()
+# get reference to persistent actions vector
+actions = runner.get_actions()
 
-# get references to internal data structures
+# get references to other internal data structures
 next_agents = np.expand_dims(envs.agent_selection, 1)
 next_obs = envs.observations
 am = next_obs["player_data"]["action_mask"]
@@ -137,15 +136,16 @@ player_masks = envs.selected_action_masks
 current_rewards = envs.rewards
 current_dones = envs.dones
 current_infos = envs.infos
+runner.start_workers()
 
 start = time.time()
 for i in range(steps):
 
-    # update actions array using action_masks
+    # updates actions array using action_masks, only submitting the sampling tasks
     runner.sample()
 
-    # step the environments with the sampled actions, block until ready!
-    runner.step_sync()
+    # step the environments with the sampled actions, blocking
+    runner.step()
 
     # print info from finished episodes
     for i in np.nonzero(current_dones)[0]:

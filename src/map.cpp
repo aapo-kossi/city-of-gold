@@ -185,7 +185,6 @@ ConnectionInfo MapPiece::get_ref_connection_points(u_char new_size,
   std::vector<point> coords;
   bool can_rotate = false;
   if (size == PieceSize::LARGE) {
-    /*if (type == PieceType::START) {valid_directions = 1;};*/
     if (new_size == PieceSize::LARGE) {
       can_rotate = true;
       rotations.push_back({-2, -1, 0, 1, 2, 3});
@@ -210,6 +209,10 @@ ConnectionInfo MapPiece::get_ref_connection_points(u_char new_size,
       // invalid combination of pieces
       rotations = {};
       coords = {};
+    }
+    // Start piece only has the single connection direction
+    if (type == PieceType::START) {
+      can_rotate = false;
     }
   } else if ((size == PieceSize::SMALL) && (new_size == PieceSize::LARGE)) {
     rotations.push_back({-2, -1, 0, 1, 2, 3});
@@ -347,17 +350,25 @@ MovementInfo Map::_move(u_char player, point target) {
 void Map::set_movement_mask(ActionMask &mask, u_char player,
                             std::array<float, N_RESOURCETYPES> resources,
                             u_char n_active) const {
-  point loc = player_locations[player];
+  point original_loc = player_locations[player];
 
   for (u_char i = 1; i < N_DIRECTIONS; i++) {
-    point idx = loc + DIRECTIONS[i] - min_xy;
+    point target_loc = original_loc + DIRECTIONS[i];
+    point idx = target_loc - min_xy;
     const Hex *hex = get_from_array(idx);
     bool req_filled;
     u_char req_idx = static_cast<u_char>(hex->requirement);
     if (req_idx >= static_cast<u_char>(Requirement::DISCARD)) {
+      // Check if able to discard or remove enough cards
       req_filled = n_active > hex->n_required;
     } else {
+      // Check if resources sufficient
       req_filled = resources[req_idx] >= hex->n_required;
+    }
+
+    // disallow points already occupied by a player
+    for (point other_loc : player_locations) {
+      req_filled &= (other_loc != target_loc);
     }
     mask.move[i] =
         (hex->requirement != Requirement::NULL_REQUIREMENT) && req_filled;
