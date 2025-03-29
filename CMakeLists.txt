@@ -1,12 +1,13 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(CityofGold LANGUAGES CXX)
+project(CityofGold VERSION ${SKBUILD_PROJECT_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(CheckIPOSupported)
 check_ipo_supported(RESULT supported OUTPUT error)
@@ -50,12 +51,20 @@ endif()
 
 option(ENABLE_TESTS "Enable building and running tests" ON)
 option(ENABLE_PYTHON_BINDINGS "Build Python bindings" ON)
+option(ENABLE_RENDERING "Build environment rendering capability using SDL3" ON)
 
 if (DEFINED ENV{CIBUILDWHEEL} OR DEFINED ENV{READTHEDOCS} OR DEFINED ENV{ASV})
     set(ENABLE_TESTS OFF)
 endif()
 
+if (DEFINED ENV{READTHEDOCS})
+    message("DISABLING RENDERING!!!!!!!!!!!!!!!!!1")
+    set(ENABLE_RENDERING OFF)
+endif()
+
+configure_file(include/config.h.in ${CMAKE_BINARY_DIR}/include/config.h)
 include_directories(include)
+include_directories(${CMAKE_BINARY_DIR}/include)
 
 # The main library
 add_library(city_of_gold_env
@@ -63,8 +72,9 @@ add_library(city_of_gold_env
     src/map.cpp
     src/player.cpp
     src/cards.cpp
-    src/geometry.cpp
+    src/render.cpp
 )
+
 
 target_compile_definitions(city_of_gold_env PRIVATE COG_LIBRARY_EXPORTS)
 target_include_directories(city_of_gold_env PRIVATE include)
@@ -113,9 +123,21 @@ else()
     )
 endif()
 
+if(ENABLE_RENDERING)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Disable SDL shared lib" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "Enable SDL static build" FORCE)
+    set(SDL_SHARED OFF CACHE BOOL "Disable SDL shared lib" FORCE)
+    add_subdirectory(external/SDL EXCLUDE_FROM_ALL)
+
+    target_link_libraries(city_of_gold_env PRIVATE SDL3-static)
+    target_compile_definitions(city_of_gold_env PUBLIC COG_BUILD_WITH_RENDERING)
+
+endif()
+
 add_executable(profile_environment src/tests/profile.cpp)
 target_link_libraries(profile_environment PRIVATE city_of_gold_env)
 target_compile_definitions(profile_environment PRIVATE COG_LIBRARY_EXPORTS)
+
 
 if(ENABLE_PYTHON_BINDINGS)
 
@@ -153,12 +175,13 @@ if(ENABLE_PYTHON_BINDINGS)
         pybind11::module
     )
     set_target_properties(bindings_ PROPERTIES
-        OUTPUT_NAME "${proj_name}"
+        OUTPUT_NAME "_city_of_gold"
     )
 
     target_include_directories(bindings_ PRIVATE external)
 
-    install(TARGETS bindings_ LIBRARY DESTINATION .)
+    install(DIRECTORY module_tree/ DESTINATION ./${proj_name})
+    install(DIRECTORY assets DESTINATION ./${proj_name}/)
+    install(TARGETS bindings_ LIBRARY DESTINATION ./${proj_name}/)
 
 endif()
-

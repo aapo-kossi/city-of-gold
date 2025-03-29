@@ -2,7 +2,9 @@
 #include "pybind/common.h"
 #include "pybind/vectorized.h"
 
-PYBIND11_MODULE(city_of_gold, m) {
+PYBIND11_MODULE(_city_of_gold, m_unused) {
+  (void) m_unused;
+  auto m = py::module_::import("city_of_gold");
   m.doc() = "Python bindings for City of Gold C++ RL environment";
 
   PYBIND11_NUMPY_DTYPE(DeckObs, draw, hand, active, played, discard);
@@ -27,6 +29,7 @@ PYBIND11_MODULE(city_of_gold, m) {
       .def("sample", &action_sampler::sample);
 
   auto m_vec = m.def_submodule("vec", "Vectorized utilities");
+
   bind_runners<max_envs>(m_vec);
 
   py::enum_<Difficulty>(m, "Difficulty")

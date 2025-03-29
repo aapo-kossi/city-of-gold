@@ -12,26 +12,25 @@ namespace py = pybind11;
 void bind_single_env(py::module_ &m) {
   py::class_<cog_env>(m, "cog_env")
       .def(py::init<>())
-      .def(py::init<uint32_t, u_char, u_char, Difficulty, unsigned int,
-                    bool>())
-      .def_property_readonly("agent_selection",
-                             &cog_env::get_agent_selection)
-      .def("init", &cog_env::init, py::arg("observations"),
-           py::arg("info"), py::arg("rewards"),
-           py::arg("selected_action_masks"))
+      .def(py::init<uint32_t, u_char, u_char, Difficulty, unsigned int, bool>(),
+           py::arg("seed"), py::arg("n_players"), py::arg("n_pieces"),
+           py::arg("difficulty"), py::arg("max_steps"), py::arg("render"))
+      .def_property_readonly("agent_selection", &cog_env::get_agent_selection)
+      .def("init", &cog_env::init, py::arg("observations"), py::arg("info"),
+           py::arg("rewards"), py::arg("selected_action_mask"))
       .def("reset", (void(cog_env::*)()) & cog_env::reset)
-      .def("reset", (void(cog_env::*)(uint32_t, u_char, u_char,
-                                           Difficulty, unsigned int, bool)) &
+      .def("reset", (void(cog_env::*)(uint32_t, u_char, u_char, Difficulty,
+                                      unsigned int, bool)) &
                         cog_env::reset)
       .def("step", &cog_env::step)
       .def("render", &cog_env::render)
-      .def("get_map", &cog_env::get_map,
-           py::return_value_policy::reference)
+      .def("get_map", &cog_env::get_map, py::return_value_policy::reference)
       .def("get_seed", &cog_env::get_seed)
       .def("get_n_players", &cog_env::get_n_players)
       .def("get_done", &cog_env::get_done);
 
   py::class_<ObsData>(m, "ObsData")
+      .def(py::init<>())
       .def_readonly("shared", &ObsData::shared,
                     py::return_value_policy::reference_internal)
       .def_readonly("player_data", &ObsData::player_data,
@@ -56,6 +55,8 @@ void bind_single_env(py::module_ &m) {
                     py::return_value_policy::reference_internal);
 
   py::class_<ActionMask> py_action_mask(m, "ActionMask");
+  py_action_mask.def(py::init<>());
+
   bind_array<ActionMask, bool, N_CARDTYPES + 1>(py_action_mask, "play",
                                                 &ActionMask::play);
   bind_array<ActionMask, bool, N_CARDTYPES + 1>(py_action_mask, "play_special",
@@ -78,9 +79,15 @@ void bind_single_env(py::module_ &m) {
                                            &DeckObs::discard);
 
   py::class_<ActionData> py_action_data(m, "ActionData");
-  py_action_data.def_readwrite("play", &ActionData::play)
+  py_action_data.def(py::init<>())
+      .def_readwrite("play", &ActionData::play)
       .def_readwrite("play_special", &ActionData::play_special)
       .def_readwrite("move", &ActionData::move)
       .def_readwrite("get_from_shop", &ActionData::get_from_shop)
       .def_readwrite("remove", &ActionData::remove);
+
+  py::class_<Info> py_info(m, "Info");
+  py_info.def(py::init<>())
+      .def_readwrite("total_length", &Info::total_length)
+      .def_readwrite("agent_infos", &Info::agent_infos);
 }

@@ -14,28 +14,6 @@ std::vector<const Hex *> get_n_copies(const Hex *hex, size_t n) {
   return ret;
 };
 
-inline cubepoint cube_rotate(cubepoint uvw, int times) {
-  float u = -uvw.u;
-  float v = -uvw.v;
-  float w = -uvw.w;
-  if (times == 1) {
-    return cubepoint{v, w, u};
-  } else if (times == -1) {
-    return cubepoint{w, u, v};
-  } else {
-    bool clockwise = std::signbit(times);
-    int single = 1 - 2 * clockwise;
-    return cube_rotate(cube_rotate(uvw, single), times - single);
-  }
-}
-
-inline point point_rotate(point xy, int times) {
-  times = times % 6;
-  cubepoint uvw = xy_to_cube(xy);
-  uvw = cube_rotate(uvw, times);
-  return cube_to_xy(uvw);
-}
-
 inline std::vector<point> rotate(std::vector<point> xy, int times) {
   times = times % 6;
   std::transform(xy.begin(), xy.end(), xy.begin(),
@@ -92,7 +70,7 @@ std::string hex_to_string(const Hex *hex, u_char occupier) {
     player_char = static_cast<char>(occupier) + '0';
   }
   std::string player_string =
-      colored(std::string() + player_char, player_colors[occupier]);
+      colored(std::string() + player_char, player_colors_[occupier]);
   std::string s;
   if (hex->player_start) {
     s = std::string() + 'S' + static_cast<char>(hex->player_start + '0');
@@ -727,3 +705,7 @@ void Map::reset() {
   hex_array.clear();
   hex_index.clear();
 };
+
+const std::vector<const Hex *> &Map::get_hexes() const { return hexes; };
+
+const std::vector<point> &Map::get_xy() const { return xy; };
