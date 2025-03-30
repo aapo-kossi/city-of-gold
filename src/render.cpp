@@ -25,7 +25,7 @@ std::string get_asset_path() {
   HMODULE hModule = nullptr;
   if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
                             GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                        (LPCTSTR)get_library_path, &hModule)) {
+                        (LPCTSTR)get_asset_path, &hModule)) {
     GetModuleFileName(hModule, path, MAX_PATH);
     p = path;
   }
