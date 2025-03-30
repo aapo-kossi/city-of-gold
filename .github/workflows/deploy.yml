@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         # macos-13: intel, macos-14: apple silicon
-        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
+        os: [ubuntu-latest, windows-2025, macos-13, macos-14]
 
     steps:
       - uses: actions/checkout@v4
