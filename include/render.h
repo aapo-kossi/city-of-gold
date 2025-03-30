@@ -11,6 +11,7 @@
 #if defined(__linux__) || defined(__APPLE__)
 #include <dlfcn.h>
 #elif defined(_WIN32)
+#define NOMINMAX
 #include <windows.h>
 #endif
 
