@@ -181,7 +181,7 @@ if(ENABLE_PYTHON_BINDINGS)
 
     # On mac and windows, bundle the SDL lib with the installation
     if (APPLE OR WIN32)
-        install(FILES ${SDL3_LIBRARY} ./${proj_name}/)
+        install(FILES ${SDL3_LIBRARY} DESTINATION ./${proj_name}/)
     endif()
 
     # On mac, the rpath additionally needs to be set for SDL to be located
