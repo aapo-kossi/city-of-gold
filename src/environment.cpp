@@ -70,8 +70,7 @@ void cog_env::reset() {
   turn_counter = 0;
 
   for (u_char i = 0; i < n_players; i++) {
-    *selected_action_mask = observations->player_data[i].action_mask;
-    update_observation(i);
+    update_observation(i, observations->player_data[i].action_mask);
   }
   *selected_action_mask =
       observations->player_data[agent_selection].action_mask;
@@ -198,7 +197,7 @@ void cog_env::step(const ActionData &action) {
   }
 
   maybe_end_turn();
-  update_observation(agent_selection);
+  update_observation(agent_selection, *selected_action_mask);
   if (special_function != nullptr) {
     special_function(*selected_action_mask, p, map, shop);
     special_function = nullptr;
@@ -267,9 +266,8 @@ void cog_env::maybe_end_turn() {
   }
 }
 
-void cog_env::update_observation(u_char agent) {
+void cog_env::update_observation(u_char agent, ActionMask &am) {
 
-  ActionMask &am = *selected_action_mask;
   am.move.fill(false);
   am.move[0] = true;
   am.get_from_shop.fill(false);

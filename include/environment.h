@@ -41,7 +41,7 @@ private:
   /*mask_override_ptr mask_override;*/
   unsigned int turn_counter;
 
-  void update_observation(u_char agent);
+  void update_observation(u_char agent, ActionMask &am);
 
   void next_agent();
   float get_reward(u_char agent);
