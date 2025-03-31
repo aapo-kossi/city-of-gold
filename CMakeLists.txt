@@ -72,7 +72,7 @@ add_library(city_of_gold_env
     src/map.cpp
     src/player.cpp
     src/cards.cpp
-    src/render.cpp
+    $<$<BOOL:${ENABLE_RENDERING}>:src/render.cpp>
 )
 
 
