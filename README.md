@@ -1,5 +1,11 @@
 # City of Gold
 
+![PyPI - Version](https://img.shields.io/pypi/v/city-of-gold)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/city-of-gold)
+![Read the Docs](https://img.shields.io/readthedocs/city-of-gold)
+![PyPI - License](https://img.shields.io/pypi/l/city-of-gold)
+![GitHub top language](https://img.shields.io/github/languages/top/aapo-kossi/city-of-gold?labelColor=044F88&color=5E97D0)
+
 ### A board game reinforcement learning environment
 
 ## Features
@@ -83,7 +89,7 @@ with C++ code. This code is intended as a tool to research and validate
 reinforcement learning methods and models in a complex, procedurally generated
 environment with interactions between multiple players. As game mechanics alone
 [do not generally fall under copyright](https://www.khuranaandkhurana.com/2025/03/04/copyright-in-the-gaming-industry-protecting-game-developers-rights/)
-, this repository can be freely distributed and is licensed under Apache 2.0.
+, this repository can be distributed, given the included license terms are followed.
 
 ## Installation
 
@@ -136,7 +142,7 @@ player_masks = envs.selected_action_masks
 current_rewards = envs.rewards
 current_dones = envs.dones
 current_infos = envs.infos
-runner.start_workers()
+runner.start_workers() # for multithreaded execution only
 
 start = time.time()
 for i in range(steps):
@@ -154,12 +160,26 @@ for i in range(steps):
 ```
 
 The built-in action sampler is a simple uniform random agent, sampling from
-all possible valid actions. Full reference documentation of the module interface
-is a work in progress.
+all possible valid actions. The map of a single environment can also be
+visualized by setting the render flag on *initialization* of the environment,
+and afterwards calling the `env.render()` method. An example of this is
+included in the [examples](examples/) folder. The other example
+script can be used to check the relative performance of single-threaded
+sequential execution compared to multithreading, since the synchronization
+overhead can be relatively high for simple actions.
+
+You can also reference the full [documentation](https://city-of-gold.readthedocs.io/)
+of the module interface for other usage details. An important note is that
+environment data is interfaced by reference, and updated as side-effects of the
+step and sample functions of the vectorized game runner object. This reduces
+overhead from Python reference counting and prevents unnecessary copying of the
+large observation structs. However, to create a replay buffer etc, you
+need to ensure that you copy the underlying data and not only the reference
+pointing to data that will be overwritten by the runner at every step.
 
 Not respecting the action mask of the current player when stepping the environment
 results in undefined behaviour. It is the user's responsibility to prevent this
-in their application. This is a choice based on performance considerations,
+in their application. This is also a choice based on performance considerations,
 given that an RL algorithm learning the environment needs to mask its policy
 distribution using the action mask, making verification inside the environment
 unnecessary.
