@@ -122,7 +122,7 @@ else()
 endif()
 
 if(ENABLE_RENDERING)
-    find_package(SDL3 REQUIRED)
+    add_subdirectory(external/SDL EXCLUDE_FROM_ALL)
 
     target_link_libraries(city_of_gold_env PRIVATE SDL3::SDL3)
     target_compile_definitions(city_of_gold_env PUBLIC COG_BUILD_WITH_RENDERING)
