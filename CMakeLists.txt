@@ -7,7 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(CheckIPOSupported)
 check_ipo_supported(RESULT supported OUTPUT error)
@@ -58,7 +57,7 @@ if (DEFINED ENV{CIBUILDWHEEL} OR DEFINED ENV{READTHEDOCS} OR DEFINED ENV{ASV})
 endif()
 
 if (DEFINED ENV{READTHEDOCS})
-    message("DISABLING RENDERING!!!!!!!!!!!!!!!!!1")
+    message("DISABLED RENDERING!")
     set(ENABLE_RENDERING OFF)
 endif()
 
@@ -74,7 +73,6 @@ add_library(city_of_gold_env
     src/cards.cpp
     $<$<BOOL:${ENABLE_RENDERING}>:src/render.cpp>
 )
-
 
 target_compile_definitions(city_of_gold_env PRIVATE COG_LIBRARY_EXPORTS)
 target_include_directories(city_of_gold_env PRIVATE include)
@@ -124,12 +122,9 @@ else()
 endif()
 
 if(ENABLE_RENDERING)
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Disable SDL shared lib" FORCE)
-    set(SDL_STATIC ON CACHE BOOL "Enable SDL static build" FORCE)
-    set(SDL_SHARED OFF CACHE BOOL "Disable SDL shared lib" FORCE)
-    add_subdirectory(external/SDL EXCLUDE_FROM_ALL)
+    find_package(SDL3 REQUIRED)
 
-    target_link_libraries(city_of_gold_env PRIVATE SDL3-static)
+    target_link_libraries(city_of_gold_env PRIVATE SDL3::SDL3)
     target_compile_definitions(city_of_gold_env PUBLIC COG_BUILD_WITH_RENDERING)
 
 endif()
@@ -183,5 +178,20 @@ if(ENABLE_PYTHON_BINDINGS)
     install(DIRECTORY module_tree/ DESTINATION ./${proj_name})
     install(DIRECTORY assets DESTINATION ./${proj_name}/)
     install(TARGETS bindings_ LIBRARY DESTINATION ./${proj_name}/)
+
+    # On mac and windows, bundle the SDL lib with the installation
+    if (APPLE OR WIN32)
+        install(FILES ${SDL3_LIBRARY} ./${proj_name}/)
+    endif()
+
+    # On mac, the rpath additionally needs to be set for SDL to be located
+    # at runtime. Windows just sees it in the extension directory
+    if(APPLE)
+        set(CMAKE_MACOSX_RPATH 1)
+        set(CMAKE_INSTALL_RPATH "@loader_path")
+        set(CMAKE_BUILD_WITH_INSTALL_RPATH 1)
+    endif()
+
+    # On linux, install SDL3 from your system package manager :)
 
 endif()

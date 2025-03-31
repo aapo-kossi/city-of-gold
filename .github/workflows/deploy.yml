@@ -19,12 +19,28 @@ jobs:
     strategy:
       matrix:
         # macos-13: intel, macos-14: apple silicon
-        os: [ubuntu-latest, windows-2025, macos-13, macos-14]
+        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: 'true'
+
+      - name: Install SDL3 (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsdl3-dev
+
+      - name: Install SDL3 (macOS)
+        if: runner.os == 'macOS'
+        run: brew install sdl3
+
+      - name: Install SDL3 (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/libsdl-org/SDL/releases/latest/download/SDL3-devel-VC.zip" -OutFile "SDL3-devel-VC.zip"
+          Expand-Archive -Path SDL3-devel-VC.zip -DestinationPath SDL3
+          echo "SDL3_INCLUDE_DIR=${{ github.workspace }}\\SDL3\\include" >> $GITHUB_ENV
+          echo "SDL3_LIBRARY_DIR=${{ github.workspace }}\\SDL3\\lib" >> $GITHUB_ENV
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.0
