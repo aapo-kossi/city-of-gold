@@ -149,6 +149,18 @@ The main usage pattern of the environment follows the example below:
             print(current_infos[i])
 
 
+Primitive rendering of the game map can be enabled for a single environment with
+the `render` flag in the :py:func:`city_of_gold.cog_env` constructor. Then,
+the current environment state can be displayed on screen by calling the
+:py:func:`city_of_gold.cog_env.render` method. Below is an example render
+of a game state.
+
+.. image:: render.png
+   :width: 600px
+   :height: 400px
+   :alt: A black background with hexagonal tiles in various colours with symbols displaying features of heach tile. Four player avatars are shown on top of their tiles.
+   :align: center
+
 The built-in action sampler is a simple uniform random agent, sampling from
 all possible valid actions. Full reference documentation of the module interface
 is a work in progress.

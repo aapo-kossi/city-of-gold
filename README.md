@@ -17,6 +17,7 @@
 - Logic fully implemented in C++ for high performance
 - [Benchmarks](https://aapo-kossi.github.io/city-of-gold/) using [asv](https://github.com/airspeed-velocity/asv).
 - Portable CMake build configuration and easy installation with uv or pip
+- Possible live visualization of game state using SDL3
 
 ## Game mechanics
 
@@ -163,7 +164,12 @@ The built-in action sampler is a simple uniform random agent, sampling from
 all possible valid actions. The map of a single environment can also be
 visualized by setting the render flag on *initialization* of the environment,
 and afterwards calling the `env.render()` method. An example of this is
-included in the [examples](examples/) folder. The other example
+included in the [examples](examples/) folder. An example render frame is
+also shown below.
+
+[!render](docs/source/render.png)
+
+The other example
 script can be used to check the relative performance of single-threaded
 sequential execution compared to multithreading, since the synchronization
 overhead can be relatively high for simple actions.
