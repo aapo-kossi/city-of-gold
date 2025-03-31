@@ -78,19 +78,6 @@ add_library(city_of_gold_env
 target_compile_definitions(city_of_gold_env PRIVATE COG_LIBRARY_EXPORTS)
 target_include_directories(city_of_gold_env PRIVATE include)
 
-# Tests
-if(ENABLE_TESTS)
-    find_package(doctest REQUIRED)
-
-    add_executable(test_environment src/tests/test_environment.cpp)
-    target_compile_definitions(test_environment PRIVATE COG_LIBRARY_EXPORTS)
-    target_link_libraries(test_environment PRIVATE city_of_gold_env doctest::doctest)
-
-    include(CTest)
-    enable_testing()
-    add_test(NAME EnvironmentUnitTests COMMAND test_environment)
-endif()
-
 if(MSVC)
     target_compile_options(city_of_gold_env PRIVATE /W4)
     target_compile_options(city_of_gold_env PRIVATE
@@ -115,12 +102,13 @@ else()
         "$<$<CONFIG:Debug>:-fsanitize=address;-fsanitize=undefined;-fdiagnostics-color=always>"
     )
     target_link_libraries(city_of_gold_env PRIVATE
-        "$<$<CONFIG:Debug>:-fsanitize=address;-fsanitize=undefined>"
+        dl "$<$<CONFIG:Debug>:-fsanitize=address;-fsanitize=undefined>"
     )
     target_link_options(city_of_gold_env PRIVATE
         "$<$<CONFIG:Debug>:-fsanitize=address;-fsanitize=undefined>"
     )
 endif()
+
 
 if(ENABLE_RENDERING)
     add_subdirectory(external/SDL EXCLUDE_FROM_ALL)
@@ -130,10 +118,27 @@ if(ENABLE_RENDERING)
 
 endif()
 
+# Tests
+if(ENABLE_TESTS)
+    find_package(doctest REQUIRED)
+
+    add_executable(test_environment src/tests/test_environment.cpp)
+    target_compile_definitions(test_environment PRIVATE COG_LIBRARY_EXPORTS)
+    target_link_libraries(test_environment PRIVATE city_of_gold_env doctest::doctest)
+
+    include(CTest)
+    enable_testing()
+    add_test(NAME EnvironmentUnitTests COMMAND test_environment)
+endif()
+
+
 add_executable(profile_environment src/tests/profile.cpp)
 target_link_libraries(profile_environment PRIVATE city_of_gold_env)
 target_compile_definitions(profile_environment PRIVATE COG_LIBRARY_EXPORTS)
 
+if(NOT WIN32)
+    target_link_libraries(profile_environment PRIVATE dl)
+endif()
 
 if(ENABLE_PYTHON_BINDINGS)
 
