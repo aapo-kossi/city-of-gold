@@ -167,7 +167,7 @@ and afterwards calling the `env.render()` method. An example of this is
 included in the [examples](examples/) folder. An example render frame is
 also shown below.
 
-[!render](docs/source/render.png)
+![render](docs/source/render.png)
 
 The other example
 script can be used to check the relative performance of single-threaded
