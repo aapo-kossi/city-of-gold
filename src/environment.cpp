@@ -68,7 +68,9 @@ void cog_env::reset() {
   done = false;
   special_function = nullptr;
   turn_counter = 0;
+
   for (u_char i = 0; i < n_players; i++) {
+    *selected_action_mask = observations->player_data[i].action_mask;
     update_observation(i);
   }
   *selected_action_mask =
