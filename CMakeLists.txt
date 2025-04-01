@@ -113,7 +113,7 @@ endif()
 if(ENABLE_RENDERING)
     add_subdirectory(external/SDL EXCLUDE_FROM_ALL)
 
-    target_link_libraries(city_of_gold_env PRIVATE SDL3::SDL3)
+    target_link_libraries(city_of_gold_env PRIVATE SDL3-shared)
     target_compile_definitions(city_of_gold_env PUBLIC COG_BUILD_WITH_RENDERING)
 
 endif()
@@ -181,22 +181,26 @@ if(ENABLE_PYTHON_BINDINGS)
 
     target_include_directories(bindings_ PRIVATE external)
 
+    if(ENABLE_RENDERING)
+
+        # On mac, the rpath additionally needs to be set for SDL to be located
+        # at runtime. Windows just sees it in the extension directory
+        if(APPLE)
+            set(CMAKE_MACOSX_RPATH 1)
+            set(CMAKE_INSTALL_RPATH "@loader_path")
+            set(CMAKE_BUILD_WITH_INSTALL_RPATH 1)
+        elif(LINUX)
+            set(CMAKE_INSTALL_RPATH "$ORIGIN")
+            set(CMAKE_BUILD_WITH_INSTALL_RPATH 1)
+        endif()
+
+        install(TARGETS SDL3-shared LIBRARY DESTINATION ./${proj_name}/)
+
+    endif()
+
     install(DIRECTORY module_tree/ DESTINATION ./${proj_name})
     install(DIRECTORY assets DESTINATION ./${proj_name}/)
     install(TARGETS bindings_ LIBRARY DESTINATION ./${proj_name}/)
-
-    # On mac and windows, bundle the SDL lib with the installation
-    if (APPLE OR WIN32)
-        install(FILES ${SDL3_LIBRARY} DESTINATION ./${proj_name}/)
-    endif()
-
-    # On mac, the rpath additionally needs to be set for SDL to be located
-    # at runtime. Windows just sees it in the extension directory
-    if(APPLE)
-        set(CMAKE_MACOSX_RPATH 1)
-        set(CMAKE_INSTALL_RPATH "@loader_path")
-        set(CMAKE_BUILD_WITH_INSTALL_RPATH 1)
-    endif()
 
     # On linux, install SDL3 from your system package manager :)
 
