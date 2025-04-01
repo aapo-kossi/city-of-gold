@@ -191,12 +191,11 @@ if(ENABLE_PYTHON_BINDINGS)
         if(APPLE)
             set(CMAKE_MACOSX_RPATH 1)
             set(CMAKE_INSTALL_RPATH "@loader_path")
-            set(CMAKE_BUILD_WITH_INSTALL_RPATH 1)
         elseif(LINUX)
             set(CMAKE_INSTALL_RPATH "$ORIGIN")
-            set(CMAKE_BUILD_WITH_INSTALL_RPATH 1)
         endif()
 
+        set(CMAKE_BUILD_WITH_INSTALL_RPATH 1)
         install(TARGETS SDL3-shared LIBRARY DESTINATION ./${proj_name}/.lib/)
         set_target_properties(bindings_ PROPERTIES INSTALL_RPATH "$ORIGIN/.lib/")
 
