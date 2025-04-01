@@ -186,18 +186,17 @@ if(ENABLE_PYTHON_BINDINGS)
 
     if(ENABLE_RENDERING)
 
-        # On mac, the rpath additionally needs to be set for SDL to be located
-        # at runtime. Windows just sees it in the extension directory
-        if(APPLE)
-            set(CMAKE_MACOSX_RPATH 1)
-            set(CMAKE_INSTALL_RPATH "@loader_path")
-        elseif(LINUX)
-            set(CMAKE_INSTALL_RPATH "$ORIGIN")
-        endif()
-
         set(CMAKE_BUILD_WITH_INSTALL_RPATH 1)
         install(TARGETS SDL3-shared LIBRARY DESTINATION ./${proj_name}/.lib/)
-        set_target_properties(bindings_ PROPERTIES INSTALL_RPATH "$ORIGIN/.lib/")
+
+        # On mac, the rpath additionally needs to be set for SDL to be located
+        # at runtime. On windows the dll path must be specified at runtime
+        if(LINUX)
+            set_target_properties(bindings_ PROPERTIES INSTALL_RPATH "$ORIGIN/.lib/")
+        elseif(APPLE)
+            set(CMAKE_MACOSX_RPATH 1)
+            set_target_properties(bindings_ PROPERTIES INSTALL_RPATH "@loader_path/.lib/")
+        endif()
 
     endif()
 
