@@ -187,7 +187,10 @@ if(ENABLE_PYTHON_BINDINGS)
     if(ENABLE_RENDERING)
 
         set(CMAKE_BUILD_WITH_INSTALL_RPATH 1)
-        install(TARGETS SDL3-shared LIBRARY DESTINATION ./${proj_name}/.lib/)
+        install(TARGETS SDL3-shared
+            LIBRARY DESTINATION ./${proj_name}/.lib/
+            RUNTIME DESTINATION ./${proj_name}/.lib/
+        )
 
         # On mac, the rpath additionally needs to be set for SDL to be located
         # at runtime. On windows the dll path must be specified at runtime
