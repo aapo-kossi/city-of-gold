@@ -10,6 +10,7 @@ on:
         options:
           - ubuntu-latest
           - windows-latest
+          - windows-2025
           - macos-13
           - macos-14
 jobs:
