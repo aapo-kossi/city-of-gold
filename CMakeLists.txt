@@ -181,6 +181,9 @@ if(ENABLE_PYTHON_BINDINGS)
 
     target_include_directories(bindings_ PRIVATE external)
 
+    install(DIRECTORY module_tree/ DESTINATION ./${proj_name})
+    install(DIRECTORY assets DESTINATION ./${proj_name}/)
+
     if(ENABLE_RENDERING)
 
         # On mac, the rpath additionally needs to be set for SDL to be located
@@ -194,12 +197,11 @@ if(ENABLE_PYTHON_BINDINGS)
             set(CMAKE_BUILD_WITH_INSTALL_RPATH 1)
         endif()
 
-        install(TARGETS SDL3-shared LIBRARY DESTINATION ./${proj_name}/)
+        install(TARGETS SDL3-shared LIBRARY DESTINATION ./${proj_name}/.lib/)
+        set_target_properties(bindings_ PROPERTIES INSTALL_RPATH "$ORIGIN/.lib/")
 
     endif()
 
-    install(DIRECTORY module_tree/ DESTINATION ./${proj_name})
-    install(DIRECTORY assets DESTINATION ./${proj_name}/)
     install(TARGETS bindings_ LIBRARY DESTINATION ./${proj_name}/)
 
     # On linux, install SDL3 from your system package manager :)
