@@ -26,10 +26,11 @@ def test_renderloop(capsys):
             step += 1
 
         assert True
-    except RuntimeError:
+    except RuntimeError as e:
         err = capsys.readouterr().err
         if "No available video device" in err:
             pytest.xfail(reason=err)
+        raise e
     return
 
 
