@@ -153,8 +153,11 @@ public:
   ~cog_renderer() {
     SDL_DestroyWindow(window);
     SDL_DestroyRenderer(renderer);
-    if (!sdl_init_counter--)
+    if (!sdl_init_counter--) {
       unload_assets();
+      SDL_Quit();
+    }
+
   };
 
   void render() {
