@@ -30,8 +30,8 @@ manylinux-s390x-image = "manylinux_2_28"
 manylinux-pypy_x86_64-image = "manylinux_2_28"
 manylinux-pypy_aarch64-image = "manylinux_2_28"
 
-# Don't try to build 32 bit wheels, not worth it
-skip = ["*-manylinux_*i686", "*-musllinux_*i686", "*-win32"]
+# Don't try to build 32 bit wheels, not worth it. Numpy build fails on win pp311
+skip = ["*-manylinux_*i686", "*-musllinux_*i686", "*-win32", "pp311-win_amd64"]
 
 test-requires = ["pytest"]
 test-command = "pytest -s {package}"
