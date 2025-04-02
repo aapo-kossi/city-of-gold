@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
+cmake_policy(SET CMP0177 OLD)
 
 project(CityofGold VERSION ${SKBUILD_PROJECT_VERSION} LANGUAGES CXX)
 
