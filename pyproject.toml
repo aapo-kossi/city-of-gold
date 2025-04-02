@@ -37,4 +37,5 @@ test-requires = ["pytest"]
 test-command = "pytest -s {package}"
 
 [tool.cibuildwheel.macos]
+inherit.environment = "append"
 environment = { "MACOSX_DEPLOYMENT_TARGET" = "11.0" }
