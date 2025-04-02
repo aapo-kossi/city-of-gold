@@ -3,7 +3,7 @@ import city_of_gold as cg
 
 import pytest
 
-def test_renderloop(capsys):
+def test_renderloop(capfd):
 
     try:
         env = cg.cog_env(123, 4, 4, cg.Difficulty.HARD, 100, True)
@@ -27,7 +27,7 @@ def test_renderloop(capsys):
 
         assert True
     except RuntimeError as e:
-        cap = capsys.readouterr()
+        cap = capfd.readouterr()
         err = cap.err
         out = cap.out
         if any("No available video device" in x for x in [out, err]):
