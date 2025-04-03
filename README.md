@@ -1,10 +1,10 @@
 # City of Gold
 
-![PyPI - Version](https://img.shields.io/pypi/v/city-of-gold)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/city-of-gold)
-![Read the Docs](https://img.shields.io/readthedocs/city-of-gold)
-![PyPI - License](https://img.shields.io/pypi/l/city-of-gold)
-![GitHub top language](https://img.shields.io/github/languages/top/aapo-kossi/city-of-gold?labelColor=044F88&color=5E97D0)
+[![PyPI - Version](https://img.shields.io/pypi/v/city-of-gold)](https://pypi.org/project/city-of-gold/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/city-of-gold)](https://pypi.org/project/city-of-gold/)
+[![Read the Docs](https://img.shields.io/readthedocs/city-of-gold)](https://city-of-gold.readthedocs.io/)
+[![PyPI - License](https://img.shields.io/pypi/l/city-of-gold)](https://github.com/aapo-kossi/city-of-gold/blob/main/LICENSE)
+[![GitHub top language](https://img.shields.io/github/languages/top/aapo-kossi/city-of-gold?labelColor=044F88&color=5E97D0)](https://en.cppreference.com/)
 
 ### A board game reinforcement learning environment
 
