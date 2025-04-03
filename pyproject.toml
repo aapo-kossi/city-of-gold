@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "city_of_gold"
-version = "0.0.3"
+version = "0.0.3.dev0"
 authors = [
     {name = "Aapo Kössi", email = "aapo.ilmari.kossi@cern.ch"},
 ]
@@ -30,11 +30,32 @@ manylinux-s390x-image = "manylinux_2_28"
 manylinux-pypy_x86_64-image = "manylinux_2_28"
 manylinux-pypy_aarch64-image = "manylinux_2_28"
 
-# i686 probably works but I doubt anyone uses it. Tests fail on pp311-win
-skip = ["*-manylinux_*i686", "*-musllinux_*i686", "pp311-win_amd64"]
+# Don't try to build 32 bit wheels, not worth it. Numpy build fails on win pp311
+skip = ["*-manylinux_*i686", "*-musllinux_*i686", "*-win32", "pp311-win_amd64"]
 
 test-requires = ["pytest"]
 test-command = "pytest -s {package}"
 
+[tool.cibuildwheel.linux]
+before-all = """
+yum install -y alsa-lib-devel pulseaudio-libs-devel pipewire-devel \
+libX11-devel libXext-devel libXrandr-devel libXcursor-devel libXfixes-devel \
+libXi-devel libXScrnSaver-devel dbus-devel ibus-devel \
+systemd-devel mesa-libGL-devel libxkbcommon-devel mesa-libGLES-devel \
+mesa-libEGL-devel vulkan-devel wayland-devel wayland-protocols-devel \
+libdrm-devel mesa-libgbm-devel libusb-devel liburing-devel
+"""
+
+[[tool.cibuildwheel.overrides]]
+select = "*musllinux*"
+before-all = """
+apk add alsa-lib-dev pulseaudio-dev pipewire-dev libx11-dev libxext-dev \
+libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxscrnsaver-dev \
+dbus-dev ibus-dev mesa-dev libxkbcommon-dev vulkan-headers vulkan-loader-dev \
+wayland-dev wayland-protocols libdrm-dev mesa-gbm mesa-gl mesa-glapi mesa-gles \
+mesa-egl libusb-dev libdecor-dev pipewire-jack-dev liburing-dev
+"""
+
 [tool.cibuildwheel.macos]
 environment = { "MACOSX_DEPLOYMENT_TARGET" = "11.0" }
+

@@ -1,4 +1,4 @@
-name: Build and deploy to PyPI test server
+name: Build and deploy to PyPI
 
 on:
   workflow_dispatch:
@@ -31,6 +31,9 @@ jobs:
         with:
           package-dir: .
           output-dir: wheelhouse
+        env:
+          CIBW_ENVIRONMENT: "SDL_VIDEODRIVER=dummy"
+          CIBW_ENVIRONMENT_MACOS: "MACOSX_DEPLOYMENT_TARGET=11.0 SDL_VIDEODRIVER=dummy"
 
       - uses: actions/upload-artifact@v4
         with:
