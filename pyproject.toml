@@ -36,5 +36,26 @@ skip = ["*-manylinux_*i686", "*-musllinux_*i686", "*-win32", "pp311-win_amd64"]
 test-requires = ["pytest"]
 test-command = "pytest -s {package}"
 
+[tool.cibuildwheel.linux]
+before-all = """
+yum install -y alsa-lib-devel pulseaudio-libs-devel pipewire-devel \
+libX11-devel libXext-devel libXrandr-devel libXcursor-devel libXfixes-devel \
+libXi-devel libXScrnSaver-devel dbus-devel ibus-devel \
+systemd-devel mesa-libGL-devel libxkbcommon-devel mesa-libGLES-devel \
+mesa-libEGL-devel vulkan-devel wayland-devel wayland-protocols-devel \
+libdrm-devel mesa-libgbm-devel libusb-devel liburing-devel
+"""
+
+[[tool.cibuildwheel.overrides]]
+select = "*musllinux*"
+before-all = """
+apk add alsa-lib-dev pulseaudio-dev pipewire-dev libx11-dev libxext-dev \
+libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxscrnsaver-dev \
+dbus-dev ibus-dev mesa-dev libxkbcommon-dev vulkan-headers vulkan-loader-dev \
+wayland-dev wayland-protocols libdrm-dev mesa-gbm mesa-gl mesa-glapi mesa-gles \
+mesa-egl libusb-dev libdecor-dev pipewire-jack-dev liburing-dev
+"""
+
 [tool.cibuildwheel.macos]
 environment = { "MACOSX_DEPLOYMENT_TARGET" = "11.0" }
+
