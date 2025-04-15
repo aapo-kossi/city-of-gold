@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
+cmake_policy(SET CMP0177 OLD)
 
 project(CityofGold VERSION ${SKBUILD_PROJECT_VERSION} LANGUAGES CXX)
 
@@ -58,7 +59,7 @@ if (DEFINED ENV{CIBUILDWHEEL} OR DEFINED ENV{READTHEDOCS} OR DEFINED ENV{ASV})
 endif()
 
 if (DEFINED ENV{READTHEDOCS})
-    message("DISABLING RENDERING!!!!!!!!!!!!!!!!!1")
+    message("DISABLED RENDERING!")
     set(ENABLE_RENDERING OFF)
 endif()
 
@@ -75,22 +76,8 @@ add_library(city_of_gold_env
     $<$<BOOL:${ENABLE_RENDERING}>:src/render.cpp>
 )
 
-
 target_compile_definitions(city_of_gold_env PRIVATE COG_LIBRARY_EXPORTS)
 target_include_directories(city_of_gold_env PRIVATE include)
-
-# Tests
-if(ENABLE_TESTS)
-    find_package(doctest REQUIRED)
-
-    add_executable(test_environment src/tests/test_environment.cpp)
-    target_compile_definitions(test_environment PRIVATE COG_LIBRARY_EXPORTS)
-    target_link_libraries(test_environment PRIVATE city_of_gold_env doctest::doctest)
-
-    include(CTest)
-    enable_testing()
-    add_test(NAME EnvironmentUnitTests COMMAND test_environment)
-endif()
 
 if(MSVC)
     target_compile_options(city_of_gold_env PRIVATE /W4)
@@ -116,28 +103,43 @@ else()
         "$<$<CONFIG:Debug>:-fsanitize=address;-fsanitize=undefined;-fdiagnostics-color=always>"
     )
     target_link_libraries(city_of_gold_env PRIVATE
-        "$<$<CONFIG:Debug>:-fsanitize=address;-fsanitize=undefined>"
+        dl "$<$<CONFIG:Debug>:-fsanitize=address;-fsanitize=undefined>"
     )
     target_link_options(city_of_gold_env PRIVATE
         "$<$<CONFIG:Debug>:-fsanitize=address;-fsanitize=undefined>"
     )
 endif()
 
+
 if(ENABLE_RENDERING)
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Disable SDL shared lib" FORCE)
-    set(SDL_STATIC ON CACHE BOOL "Enable SDL static build" FORCE)
-    set(SDL_SHARED OFF CACHE BOOL "Disable SDL shared lib" FORCE)
     add_subdirectory(external/SDL EXCLUDE_FROM_ALL)
 
-    target_link_libraries(city_of_gold_env PRIVATE SDL3-static)
+    target_link_libraries(city_of_gold_env PRIVATE SDL3-shared)
     target_compile_definitions(city_of_gold_env PUBLIC COG_BUILD_WITH_RENDERING)
 
 endif()
+
+# Tests
+if(ENABLE_TESTS)
+    find_package(doctest REQUIRED)
+
+    add_executable(test_environment src/tests/test_environment.cpp)
+    target_compile_definitions(test_environment PRIVATE COG_LIBRARY_EXPORTS)
+    target_link_libraries(test_environment PRIVATE city_of_gold_env doctest::doctest)
+
+    include(CTest)
+    enable_testing()
+    add_test(NAME EnvironmentUnitTests COMMAND test_environment)
+endif()
+
 
 add_executable(profile_environment src/tests/profile.cpp)
 target_link_libraries(profile_environment PRIVATE city_of_gold_env)
 target_compile_definitions(profile_environment PRIVATE COG_LIBRARY_EXPORTS)
 
+if(NOT WIN32)
+    target_link_libraries(profile_environment PRIVATE dl)
+endif()
 
 if(ENABLE_PYTHON_BINDINGS)
 
@@ -182,6 +184,28 @@ if(ENABLE_PYTHON_BINDINGS)
 
     install(DIRECTORY module_tree/ DESTINATION ./${proj_name})
     install(DIRECTORY assets DESTINATION ./${proj_name}/)
+
+    if(ENABLE_RENDERING)
+
+        set(CMAKE_BUILD_WITH_INSTALL_RPATH 1)
+        install(TARGETS SDL3-shared
+            LIBRARY DESTINATION ./${proj_name}/.lib/
+            RUNTIME DESTINATION ./${proj_name}/.lib/
+        )
+
+        # On mac, the rpath additionally needs to be set for SDL to be located
+        # at runtime. On windows the dll path must be specified at runtime
+        if(LINUX)
+            set_target_properties(bindings_ PROPERTIES INSTALL_RPATH "$ORIGIN/.lib/")
+        elseif(APPLE)
+            set(CMAKE_MACOSX_RPATH 1)
+            set_target_properties(bindings_ PROPERTIES INSTALL_RPATH "@loader_path/.lib/")
+        endif()
+
+    endif()
+
     install(TARGETS bindings_ LIBRARY DESTINATION ./${proj_name}/)
+
+    # On linux, install SDL3 from your system package manager :)
 
 endif()

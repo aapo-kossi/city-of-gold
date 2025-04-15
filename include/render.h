@@ -1,6 +1,8 @@
 #pragma once
 
 #include "SDL3/SDL.h"
+#include "SDL3/SDL_render.h"
+#include "SDL3/SDL_video.h"
 #include "config.h"
 #include "constants.h"
 #include "environment.h"
@@ -135,8 +137,8 @@ public:
         state = SDL_APP_FAILURE;
       }
       should_load_assets = true;
-      sdl_init_counter++;
     }
+    sdl_init_counter++;
 
     if (!SDL_CreateWindowAndRenderer(
             "examples/renderer/clear", static_cast<int>(display_size.x),
@@ -147,6 +149,16 @@ public:
     if (should_load_assets)
       load_assets();
   }
+
+  ~cog_renderer() {
+    SDL_DestroyWindow(window);
+    SDL_DestroyRenderer(renderer);
+    if (!sdl_init_counter--) {
+      unload_assets();
+      SDL_Quit();
+    }
+
+  };
 
   void render() {
 
@@ -200,8 +212,6 @@ public:
                       static_cast<int>(display_size.y));
   };
 
-  ~cog_renderer() = default;
-
 private:
   cog_env const *const env;
   SDL_Window *window;
@@ -245,6 +255,18 @@ private:
     }
     for (size_t i = 0; i < static_cast<size_t>(ObjectSprite::COUNT); ++i) {
       obj_texs[i] = load_tex(i, obj_sprite_files);
+    }
+  }
+
+  void unload_assets() {
+    for (size_t i = 0; i < static_cast<size_t>(HexSprite::COUNT); ++i) {
+      SDL_DestroyTexture(hex_texs[i]);
+    }
+    for (size_t i = 0; i < static_cast<size_t>(ReqSprite::COUNT); ++i) {
+      SDL_DestroyTexture(req_texs[i]);
+    }
+    for (size_t i = 0; i < static_cast<size_t>(ObjectSprite::COUNT); ++i) {
+      SDL_DestroyTexture(obj_texs[i]);
     }
   }
 
